@@ -12,8 +12,14 @@ final class TouchInput {
     private static final double STEP=Math.PI/4, HOLD_ANGLE=Math.PI/8+Math.toRadians(3);
     private final int[] roles=new int[32],buttonsById=new int[32];
     private PadLayout layout;
-    private int owner=-1,sector=-1,direction,buttons,pendingPresses;
+    private int owner=-1,sector=-1,direction,buttons;
     private float thumbX,thumbY;
+    // Only direction changes need a timestamp. Identical sectors during a slow drag cost no slots.
+    private final long[] turnTimes=new long[128];
+    private final int[] turns=new int[turnTimes.length];
+    private int firstTurn,turnCount,sampledDirection;
+    private Snapshot press;
+    private int previousKeys,turnAttack;
 
     static final class Snapshot {
         final int keys;
@@ -21,24 +27,56 @@ final class TouchInput {
         Snapshot(int keys,float x,float y){this.keys=keys;this.x=x;this.y=y;}
     }
     synchronized void configure(PadLayout next){reset();layout=next;}
-    synchronized void reset() {clearContacts();pendingPresses=0;}
+    synchronized void reset() {
+        clearContacts();
+        firstTurn=turnCount=sampledDirection=0;
+        previousKeys=turnAttack=0;
+        press=null;
+    }
     private void clearContacts() {
         Arrays.fill(roles,0);Arrays.fill(buttonsById,0);
         owner=sector=-1;direction=buttons=0;thumbX=thumbY=0;
     }
-    synchronized Snapshot poll() {
-        Snapshot s=new Snapshot(direction|buttons|pendingPresses,thumbX,thumbY);
-        pendingPresses=0;
-        return s;
+    Snapshot poll() {return poll(Long.MAX_VALUE);}
+    Snapshot poll(long frameTimeMs) {return poll(frameTimeMs,0);}
+    synchronized Snapshot poll(long frameTimeMs,int hardwareKeys) {
+        int secondSample=turnAttack;
+        turnAttack=0;
+        Snapshot result;
+        if(press!=null) {
+            result=press;
+            press=null;
+            int dir=result.keys&DIRECTIONS,previousDir=previousKeys&DIRECTIONS;
+            int key=result.keys&~DIRECTIONS;
+            // KOF98 can see the edge but miss the cancel if a finishing tap lasts one frame.
+            // Keep one more attack sample only for a single button arriving with a real turn.
+            if(hardwareKeys==0 && dir!=0 && previousDir!=0 && dir!=previousDir
+                    && (previousKeys&key)==0 && (key&(A|B|C|D))!=0 && Integer.bitCount(key)==1)
+                turnAttack=result.keys;
+        } else {
+            while(turnCount>0 && turnTimes[firstTurn]<=frameTimeMs) {
+                sampledDirection=turns[firstTurn];
+                firstTurn=(firstTurn+1)%turns.length;
+                turnCount--;
+            }
+            int keys=sampledDirection|buttons;
+            if(secondSample!=0 && hardwareKeys==0 && buttons==0
+                    && (sampledDirection==0 || sampledDirection==(secondSample&DIRECTIONS)))
+                keys|=secondSample&~DIRECTIONS;
+            result=new Snapshot(keys,thumbX,thumbY);
+        }
+        previousKeys=hardwareKeys==0?result.keys:0;
+        return result;
     }
     synchronized int held(){return direction|buttons;}
 
-    /** Processes the whole event atomically so a frame cannot see half an update. */
-    synchronized void event(int action,int changedId,int count,int[] ids,float[] xs,float[] ys) {
+    void event(int action,int changedId,int count,int[] ids,float[] xs,float[] ys) {
+        event(action,changedId,count,ids,xs,ys,System.nanoTime()/1_000_000L);
+    }
+    synchronized void event(int action,int changedId,int count,int[] ids,float[] xs,float[] ys,long timeMs) {
         if(action==CANCEL_EVENT){reset();return;}
         if(layout==null)return;
-        // A second gesture may begin before the emulation thread consumes a tap.
-        // Keep pending presses until poll(); only CANCEL/lifecycle resets discard them.
+        int previousDirection=direction;
         if(action==DOWN_EVENT)clearContacts();
         boolean adding=action==DOWN_EVENT||action==POINTER_DOWN;
         boolean removing=action==UP_EVENT||action==POINTER_UP;
@@ -50,7 +88,25 @@ final class TouchInput {
         }
         int next=0;
         for(int value:buttonsById)next|=value;
-        pendingPresses|=next&~buttons;
+        if(direction!=0 && direction!=(turnAttack&DIRECTIONS))turnAttack=0;
+        int pendingButtons=press==null?0:press.keys&~DIRECTIONS;
+        boolean chordStillHeld=pendingButtons!=0 && (next&pendingButtons)==pendingButtons;
+        if((next&~buttons)!=0 || (chordStillHeld && direction!=0 && direction!=previousDirection)) {
+            // A turn can finish after the press and before the same port read.
+            // Keep the last real overlap even if either finger lifts before that read.
+            press=new Snapshot(direction|next,thumbX,thumbY);
+            sampledDirection=direction;
+            firstTurn=turnCount=0;
+        } else if(direction!=previousDirection) {
+            if(turnCount==turns.length) {
+                firstTurn=(firstTurn+1)%turns.length;
+                turnCount--;
+            }
+            int slot=(firstTurn+turnCount)%turns.length;
+            turnTimes[slot]=timeMs;
+            turns[slot]=direction;
+            turnCount++;
+        }
         buttons=next;
     }
     private void begin(int id,float x,float y) {

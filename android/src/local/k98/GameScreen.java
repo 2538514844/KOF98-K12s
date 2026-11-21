@@ -2,6 +2,7 @@ package local.k98;
 
 import android.graphics.*;
 import android.media.*;
+import android.os.SystemClock;
 import android.util.AtomicFile;
 import android.view.*;
 import java.io.*;
@@ -11,6 +12,7 @@ import java.util.concurrent.locks.LockSupport;
 
 final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Runnable {
     private static final Object CORE=new Object();
+    private static final long MAX_LAG_NANOS=100_000_000L;
     private final Object signal=new Object(),drawing=new Object(); private final Main host; private final File root; private final AtomicFile save;
     private final NeoMode mode;
     private volatile DisplayOptions displayOptions;
@@ -18,7 +20,7 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     private final AtomicInteger taps=new AtomicInteger();private volatile int physical,stick;
     private final AtomicBoolean reloadRequested=new AtomicBoolean();
     private final TouchInput touchInput=new TouchInput();
-    private final int[] pointerIds=new int[32];private final float[] pointerX=new float[32],pointerY=new float[32];
+    private final TouchMotion touchMotion=new TouchMotion(touchInput);
     private volatile boolean foreground,surface,dead; private volatile Controls layout;
     private final Paint videoPaint=new Paint(); private final Paint loading=new Paint(Paint.ANTI_ALIAS_FLAG);
     GameScreen(Main main,File folder,NeoMode mode,DisplayOptions options){
@@ -66,9 +68,7 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
         if(act==MotionEvent.ACTION_DOWN){requestUnbufferedDispatch(ev);if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);}
         int changed=ev.getActionIndex();
         if(act==MotionEvent.ACTION_DOWN||act==MotionEvent.ACTION_POINTER_DOWN){if(l.pause.contains(ev.getX(changed),ev.getY(changed))){releaseInput();host.pauseMenu();return true;}}
-        int count=Math.min(ev.getPointerCount(),pointerIds.length);
-        for(int i=0;i<count;i++){pointerIds[i]=ev.getPointerId(i);pointerX[i]=ev.getX(i);pointerY[i]=ev.getY(i);}
-        touchInput.event(act,ev.getPointerId(changed),count,pointerIds,pointerX,pointerY);return true;
+        touchMotion.accept(ev);return true;
     }
     private int map(int key){switch(key){case KeyEvent.KEYCODE_BUTTON_SELECT:case KeyEvent.KEYCODE_5:return mode.arcade?Controls.COIN:0;case KeyEvent.KEYCODE_DPAD_UP:return Controls.UP;case KeyEvent.KEYCODE_DPAD_DOWN:return Controls.DOWN;case KeyEvent.KEYCODE_DPAD_LEFT:return Controls.LEFT;case KeyEvent.KEYCODE_DPAD_RIGHT:return Controls.RIGHT;case KeyEvent.KEYCODE_BUTTON_START:case KeyEvent.KEYCODE_ENTER:return Controls.START;case KeyEvent.KEYCODE_BUTTON_A:case KeyEvent.KEYCODE_Z:return Controls.A;case KeyEvent.KEYCODE_BUTTON_B:case KeyEvent.KEYCODE_X:return Controls.B;case KeyEvent.KEYCODE_BUTTON_X:case KeyEvent.KEYCODE_A:return Controls.C;case KeyEvent.KEYCODE_BUTTON_Y:case KeyEvent.KEYCODE_S:return Controls.D;default:return 0;}}
     @Override public boolean onKeyDown(int key,KeyEvent e){int m=map(key);if(m==0)return super.onKeyDown(key,e);if(e.getRepeatCount()==0)latch(m);physical|=m;return true;}
@@ -123,13 +123,25 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                     continue;
                 }
                 if(wantAudio){out=audio(rate);wantAudio=false;if(out==null&&!audioNotified){audioNotified=true;host.note("暂时无法打开声音输出。");}}
-                if(tick==0)tick=System.nanoTime();TouchInput.Snapshot input=touchInput.poll();int mask=input.keys|physical|stick|taps.getAndSet(0);int n=Bridge.frame(mask,rgb,pcm,wh);if(n<0){host.failed(this,"核心已停止。");break;}if(++frames>=10)dirty=true;
+                long now=System.nanoTime();
+                if(tick==0||now-tick>MAX_LAG_NANOS)tick=now;
+                long lag=now-tick;
+                long cutoffMs=SystemClock.uptimeMillis();
+                // A genuinely overdue frame can still sample a delivered historical direction.
+                // A frame running on time takes the current input as late as possible.
+                if(lag>=step)cutoffMs-=lag/1_000_000L;
+                int hardwareKeys=physical|stick|taps.getAndSet(0);
+                TouchInput.Snapshot input=touchInput.poll(cutoffMs,hardwareKeys);
+                int mask=input.keys|hardwareKeys;
+                touchMotion.traceFrame(frames,cutoffMs,mask);
+                int n=Bridge.frame(mask,rgb,pcm,wh);if(n<0){host.failed(this,"核心已停止。");break;}
+                if(++frames>=10)dirty=true;
                 if(wh[0]>0&&wh[0]<=640&&wh[1]>0&&wh[1]<=512){if(frame==null||frame.getWidth()!=wh[0]||frame.getHeight()!=wh[1])frame=Bitmap.createBitmap(wh[0],wh[1],Bitmap.Config.ARGB_8888);frame.setPixels(rgb,0,wh[0],0,0,wh[0],wh[1]);}
                 // Present the completed video before a blocking audio write can delay it.
                 paint(frame,mask,input.x,input.y);
                 if(!announced&&frame!=null){announced=true;host.started(this);}
                 if(out!=null){int len=2*n,at=0;while(at<len&&ready()){int wrote=out.write(pcm,at,len-at,AudioTrack.WRITE_BLOCKING);if(wrote<=0){drop(out);out=null;host.note("声音输出中断，切换后台后可重试。");break;}at+=wrote;}}
-                tick+=step;long delay=tick-System.nanoTime();if(delay>0)LockSupport.parkNanos(delay);else if(delay < -100000000L)tick=0;
+                tick+=step;long delay=tick-System.nanoTime();if(delay>0)LockSupport.parkNanos(delay);else if(delay < -MAX_LAG_NANOS)tick=0;
             }
         }finally{drop(out);try{if(open&&dirty)checkpoint();}finally{Bridge.close();}}
     }

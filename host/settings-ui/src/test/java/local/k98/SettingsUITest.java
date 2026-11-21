@@ -69,7 +69,7 @@ public class SettingsUITest {
         ((View)find(root,TextView.class,"荒咬　·　必杀").getParent()).performClick();assertEquals(org.robolectric.shadows.ShadowMediaPlayer.State.END,first.getState());
         org.robolectric.shadows.ShadowMediaPlayer next=players.get(players.size()-1);assertNotSame(first,next);shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(100));assertTrue(next.isReallyPlaying());
         next.invokeErrorListener(android.media.MediaPlayer.MEDIA_ERROR_UNKNOWN,0);assertEquals(org.robolectric.shadows.ShadowMediaPlayer.State.END,next.getState());
-        TextView status=find(root,TextView.class,"角色定格 · 按法示意  |  1/4  ↓");assertNotNull("keeps poster and sequence when decoding fails",status);
+        TextView status=find(root,TextView.class,"角色定格 · 慢动作  |  1/4  ↓");assertNotNull("keeps poster and sequence when decoding fails",status);
         demo.replay();org.robolectric.shadows.ShadowMediaPlayer last=players.get(players.size()-1);assertNotSame(next,last);click(d,"返回设置");assertEquals(org.robolectric.shadows.ShadowMediaPlayer.State.END,last.getState());
     }
 }

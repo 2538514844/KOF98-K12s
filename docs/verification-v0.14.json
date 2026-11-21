@@ -1,0 +1,65 @@
+{
+    "version":  "0.14",
+    "apkBytes":  107505663,
+    "apkSha256":  "dc2668d2bf5c553395c1db61f4ebaa72bd1e2ee12122bdcdb533d395b3df7c3b",
+    "certificateSha256":  "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+    "signatures":  [
+                       "v2",
+                       "v3"
+                   ],
+    "zipAlignment":  "16KiB",
+    "architecture":  "arm64-v8a",
+    "permissions":  [
+
+                    ],
+    "unchangedPayloadEntriesCompared":  349,
+    "coreSha256":  "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+    "deviceTested":  false,
+    "baselineSha256":  "0142d08b919738d06ff7913a5f68eeb6372c2493e74bd48a0d86edb53a673cbe",
+    "sameSigner":  true,
+    "baselineVersion":  "0.13",
+    "hostTests":  {
+                      "CenteringRegressionTest":  "passed",
+                      "DisplayFlowTest":  "passed",
+                      "GuideLayoutTest":  "passed",
+                      "TouchReplayTest":  "passed",
+                      "FightPlaybackTest":  "passed"
+                  },
+    "androidWidgetTests":  [
+                               {
+                                   "name":  "local.k98.CenteringWindowTest",
+                                   "tests":  3,
+                                   "failures":  0,
+                                   "errors":  0,
+                                   "skipped":  0
+                               },
+                               {
+                                   "name":  "local.k98.PauseMenuTest",
+                                   "tests":  1,
+                                   "failures":  0,
+                                   "errors":  0,
+                                   "skipped":  0
+                               },
+                               {
+                                   "name":  "local.k98.PreviewRenderTest",
+                                   "tests":  1,
+                                   "failures":  0,
+                                   "errors":  0,
+                                   "skipped":  0
+                               },
+                               {
+                                   "name":  "local.k98.SettingsUITest",
+                                   "tests":  4,
+                                   "failures":  0,
+                                   "errors":  0,
+                                   "skipped":  0
+                               },
+                               {
+                                   "name":  "local.k98.TouchMotionTest",
+                                   "tests":  5,
+                                   "failures":  0,
+                                   "errors":  0,
+                                   "skipped":  0
+                               }
+                           ]
+}

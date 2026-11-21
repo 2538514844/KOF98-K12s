@@ -36,6 +36,18 @@ public final class CenteringRegressionTest {
             PadLayout mirrored=new PadLayout(size[0],size[1],true,options,inset[2],inset[3],inset[0],inset[1]);
             near(p.videoLeft,mirrored.videoLeft,"reverse landscape X");
             near(p.videoTop,mirrored.videoTop,"reverse landscape Y");
+            if(!full||keep){
+                float leftGap=p.videoLeft-p.dx-p.dr-PadLayout.STICK_STROKE*.5f;
+                float rightGap=Float.MAX_VALUE;
+                for(int i=0;i<4;i++){
+                    float reach=p.rx[i+1]+PadLayout.keyStroke(p.rx[i+1])*.5f;
+                    rightGap=Math.min(rightGap,p.bx[i]-reach-p.videoRight);
+                    if(p.bx[i]+reach>size[0]-inset[2]+.002f)throw new AssertionError("key outside safe bounds");
+                }
+                if(p.dx-p.dr-PadLayout.STICK_STROKE*.5f<inset[0]-.002f)throw new AssertionError("stick outside safe bounds");
+                near(leftGap,rightGap,"painted edges must be equally distant");
+                near(p.dx,mirrored.dx,"gap unchanged after rotation");
+            }
             cases++;
         }
         System.out.println("CENTERING & FULL HEIGHT PASS: "+cases+" asymmetric-inset/display cases");

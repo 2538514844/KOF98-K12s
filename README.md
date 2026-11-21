@@ -1,10 +1,10 @@
 # KOF98-K12s
 
-面向 Android 横屏手机的《拳皇 ’98》离线前端，使用 FinalBurn Neo 模拟核心。当前版本 **v0.10**，最低 Android 8.0，仅支持 **arm64-v8a**。
+面向 Android 横屏手机的《拳皇 ’98》离线前端，使用 FinalBurn Neo 模拟核心。当前版本 **v0.14**，最低 Android 8.0，仅支持 **arm64-v8a**。
 
 ## 下载与使用
 
-从本仓库的 **Releases** 页面下载 `KOF98-K12s.apk`。v0.8 / v0.9 用户可以直接覆盖安装，已有游戏数据、存档和按键布局保留。
+从 [GitHub Releases 下载最新版 APK](https://github.com/2538514844/KOF98-K12s/releases/latest/download/KOF98-K12s.apk)。使用本仓库签名版本的用户可以直接覆盖安装，已有游戏数据、存档和按键布局保留。
 
 首次使用需要在启动页导入兼容的 `KOF98-data.zip`。APK 和本仓库不包含游戏 ROM 或 BIOS；导入器按既有数据包清单和 SHA-256 严格校验，不能直接导入任意 ROM ZIP。已有数据包的用户可以继续使用，升级无需重新导入。
 
@@ -14,7 +14,7 @@
 - 中文出招表，51 个角色及形态、275 条指令和离线练习回放。
 - 自动保存/恢复、暂停和重载游戏。
 
-**v0.10 修复：**经典 4:3 按整屏高度显示，上下贴满、水平居中；安全边距和侧边按键空间不再缩小画面。按键继续避开系统安全区域。宽度不足 4:3 的窗口按宽度等比适配，保留完整画面。详见 [CHANGELOG.md](CHANGELOG.md)。
+**v0.14** 改善慢滑搓招时斜方向的采样。收招时轻点拳键，方向和拳键会一起送到模拟核心。暂停菜单已移除测试版的「最近输入」提示。详见 [更新记录](CHANGELOG.md)。
 
 ## 从源码构建（Windows）
 
@@ -51,7 +51,7 @@ $env:GRADLE_USER_HOME = "$PWD/tooling/ui-gradle"
 gradle -p host/settings-ui --console plain test
 ```
 
-首次运行测试需要下载测试依赖。测试截图在 `evidence/v0.10-preview/`。v0.10 的验证报告在 [docs/verification-v0.10.json](docs/verification-v0.10.json)。这些是电脑上的布局、触控、Android 控件及打包验证；本次没有连接 OPPO K12s，未声称完成真机验证。
+首次运行测试需要下载测试依赖。v0.14 已通过主机回归和 14 项 Android 模拟环境测试，覆盖慢滑、斜方向与出拳同时采样，以及暂停和继续。安装包签名及完整性检查见 [v0.14 验证报告](docs/verification-v0.14.json)。
 
 ## 目录
 

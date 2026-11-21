@@ -21,7 +21,7 @@ public final class DisplayFlowTest {
         check(touch.poll().keys == (PadLayout.RIGHT | PadLayout.A), "direction and A");
         touch.event(TouchInput.CANCEL_EVENT, 3, 2, fingers, x, y);
         check(touch.poll().keys == 0, "release after dialog");
-        check(pad.insertsCoin(pad.dx, (pad.coinTop + pad.coinBottom) / 2) == pad.arcade, "coin");
+        check(pad.insertsCoin(pad.cx[ControlProfile.COIN], (pad.coinTop + pad.coinBottom) / 2) == pad.arcade, "coin");
         check(pad.startsGame(pad.startX,(pad.menuTop + pad.menuBottom) / 2), "start");
         for (int i=0; i<4; i++) check(pad.fireAt(pad.bx[i],pad.by[i]) == PadLayout.BITS[i], "action key");
     }

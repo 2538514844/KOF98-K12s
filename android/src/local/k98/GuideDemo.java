@@ -56,7 +56,7 @@ final class GuideDemo extends FrameLayout implements TextureView.SurfaceTextureL
             if(player==null&&time>total+600)active=false;
         }
         int i=0,limit=lead;MoveBook.Move.Beat b=null;if(active&&time>=lead){for(;i<beats.size();i++){MoveBook.Move.Beat candidate=beats.get(i);limit+=candidate.ms;if(time<limit){b=candidate;break;}}}ink.beat=b;
-        String kind=generic?"通用场景 · 按法示意":clip==null||failed?"角色定格 · 按法示意":active&&!rendered?"角色场景":"练习场输入回放";
+        String kind=generic?"按法示意 · 慢动作":clip==null||failed?"角色定格 · 慢动作":active&&!rendered?"角色场景 · 慢动作":"练习场慢动作回放";
         String text=kind+(b!=null?"  |  "+(i+1)+"/"+beats.size()+"  "+describe(b):active&&time<lead?"  |  前置："+leadName:active?"":"  |  点重播再看一次");
         if(!previousStatus.equals(text)){previousStatus=text;status.set(text);}ink.invalidate();if(active)postDelayed(refresh,40);
     }

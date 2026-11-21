@@ -47,7 +47,7 @@ final class Controls extends PadLayout {
     }
     private void drawLeft(Canvas c,int keys,float thumbX,float thumbY){drawLeft(c,keys,thumbX,thumbY,true);}
     private void drawLeft(Canvas c,int keys,float thumbX,float thumbY,boolean menu){
-        fill(0xff202528);c.drawCircle(dx,dy,dr,p);ring(c,dx,dy,dr,2,EDGE);
+        fill(0xff202528);c.drawCircle(dx,dy,dr,p);ring(c,dx,dy,dr,STICK_STROKE,EDGE);
         float thick=dr*.27f;fill(0xff31383b);c.drawRoundRect(dx-thick,dy-dr*.89f,dx+thick,dy+dr*.89f,thick*.32f,thick*.32f,p);c.drawRoundRect(dx-dr*.89f,dy-thick,dx+dr*.89f,dy+thick,thick*.32f,thick*.32f,p);
         text(c,"▲",dx,dy-dr*.63f,thick,(keys&UP)!=0?0xffffd663:TYPE);text(c,"▼",dx,dy+dr*.63f,thick,(keys&DOWN)!=0?0xffffd663:TYPE);text(c,"◀",dx-dr*.63f,dy,thick,(keys&LEFT)!=0?0xffffd663:TYPE);text(c,"▶",dx+dr*.63f,dy,thick,(keys&RIGHT)!=0?0xffffd663:TYPE);
         fill((keys&DIRECTIONS)!=0?0xffe3c461:0xff596266);c.drawCircle(dx+thumbX*dr*.52f,dy+thumbY*dr*.52f,dr*.22f,p);
@@ -62,7 +62,7 @@ final class Controls extends PadLayout {
     }
     private void drawRight(Canvas c,int keys){drawRight(c,keys,true);}
     private void drawRight(Canvas c,int keys,boolean menu){
-        for(int i=0;i<4;i++){float r=rx[i+1];boolean held=(keys&BITS[i])!=0;fill(held?COLORS[i]:0xff242a2c);c.drawCircle(bx[i],by[i],r,p);ring(c,bx[i],by[i],r,Math.max(2,(int)(r*.07f)),COLORS[i]);text(c,LABEL[i],bx[i],by[i],r*.96f,held?INK:COLORS[i]);}
+        for(int i=0;i<4;i++){float r=rx[i+1];boolean held=(keys&BITS[i])!=0;fill(held?COLORS[i]:0xff242a2c);c.drawCircle(bx[i],by[i],r,p);ring(c,bx[i],by[i],r,keyStroke(r),COLORS[i]);text(c,LABEL[i],bx[i],by[i],r*.96f,held?INK:COLORS[i]);}
         if(menu){fill((keys&START)!=0?0xfff8d567:0xff35342d);c.drawRoundRect(start,start.height()*.18f,start.height()*.18f,p);text(c,"START",start.centerX(),start.centerY(),start.height()*.4f,(keys&START)!=0?INK:0xfff5d476);}
     }
 }

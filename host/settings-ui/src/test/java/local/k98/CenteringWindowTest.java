@@ -71,7 +71,28 @@ public class CenteringWindowTest {
             Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
             Canvas canvas=new Canvas(bitmap);canvas.drawColor(0xff151819);
             canvas.drawBitmap(frame,null,controls.video,new Paint());
+            // Use the unpainted frame as the reference so antialiased outer strokes count.
+            int[] reference=new int[width];bitmap.getPixels(reference,0,width,0,height/2,width,1);
             controls.draw(canvas,0,0,0,255);
+            int start=0,end=width-1;
+            while(reference[start]!=0xff217764)start++;
+            while(reference[end]!=0xff217764)end--;
+            int stickEnd=-1,firstKey=width;
+            int[] row=new int[width];
+            for(int y=(int)(controls.safeY+controls.safeHeight*.4f);y<height-1;y++){
+                bitmap.getPixels(row,0,width,0,y,width,1);
+                // Ignore the coloured source markers at the bottom of the frame.
+                if(row[width/2]!=reference[width/2])continue;
+                for(int x=0;x<width;x++)if(row[x]!=reference[x]){
+                    if(x<width/2)stickEnd=Math.max(stickEnd,x);else firstKey=Math.min(firstKey,x);
+                }
+            }
+            assertTrue(stickEnd>=0 && firstKey<width);
+            int leftGap=start-stickEnd-1,rightGap=firstKey-end-1;
+            String gaps=width+"x"+height+" reverse="+reverse+" visible gaps="+leftGap+","+rightGap;
+            System.out.println(gaps);
+            assertTrue(gaps,Math.abs(leftGap-rightGap)<=1);
+            if(width==2393)assertTrue(gaps,leftGap>0 && rightGap>0);
             assertEquals("first source row remains visible",0xffe06030,bitmap.getPixel(width/2,0));
             assertEquals("last source row remains visible",0xff4080e0,bitmap.getPixel(width/2,height-1));
             for(int y=1;y<height-1;y++)assertNotEquals("no vertical letterbox at row "+y,0xff151819,bitmap.getPixel(width/2,y));

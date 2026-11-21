@@ -15,6 +15,8 @@ class PadLayout {
     final float[] cx=new float[ControlProfile.COUNT],cy=cx.clone(),rx=cx.clone(),ry=cx.clone();
     final int safeX,safeY,safeWidth,safeHeight;
     final float gearLeft,gearBottom;
+    static final int STICK_STROKE=2;
+    static int keyStroke(float radius){return Math.max(2,(int)(radius*.07f));}
 
     PadLayout(int w,int h) {
         this(w,h,false);
@@ -46,19 +48,31 @@ class PadLayout {
         videoLeft=(w-pictureWidth)*.5f;videoTop=(h-pictureHeight)*.5f;
         videoRight=w-videoLeft;videoBottom=h-videoTop;
         float stickX=insetLeft+lane*.5f,stickY=insetTop+safeH*.68f,rightX=w-insetRight-lane*.5f;
+        float menuLeftX=stickX,menuRightX=rightX;
         float stickRadius=Math.min(lane*.446f,safeH*.187f);
+        float spread=Math.min(lane*.223f,safeH*.098f);br=spread*.87f;
+        if(!options.fullscreen || options.keepAspect){
+            // Split the spare space on the tighter side. If the controls cannot
+            // fit outside the picture, allow equal overlap without shrinking them.
+            float stickReach=stickRadius+STICK_STROKE*.5f;
+            float keysReach=spread+br+keyStroke(br)*.5f;
+            float side=videoLeft-Math.max(insetLeft,insetRight);
+            float spare=side-2f*Math.max(stickReach,keysReach);
+            float gap=spare>=0?spare*.5f:spare;
+            stickX=videoLeft-gap-stickReach;
+            rightX=videoRight+gap+keysReach;
+        }
         slot(ControlProfile.STICK,stickX,stickY,stickRadius,stickRadius,options.profile);
         dx=cx[0];dy=cy[0];dr=rx[0];
-        float spread=Math.min(lane*.223f,safeH*.098f);br=spread*.87f;
         for(int i=0;i<4;i++) {
             int id=ControlProfile.FIRST_KEY+i;
             slot(id,rightX+((i&1)==0?-spread:spread),stickY+((i&2)==0?spread:-spread)-((i&1)!=0?spread*.16f:0),br,br,options.profile);
             bx[i]=cx[id];by[i]=cy[id];
         }
         float hw=Math.min(lane*.39f,safeH*.126f),hh=safeH*.056f,menuY=insetTop+safeH*.235f;
-        slot(ControlProfile.PAUSE,stickX,menuY,hw,hh,options.profile);
-        slot(ControlProfile.START,rightX,menuY,hw,hh,options.profile);
-        slot(ControlProfile.COIN,stickX,insetTop+safeH*.377f,hw,safeH*.055f,options.profile);
+        slot(ControlProfile.PAUSE,menuLeftX,menuY,hw,hh,options.profile);
+        slot(ControlProfile.START,menuRightX,menuY,hw,hh,options.profile);
+        slot(ControlProfile.COIN,menuLeftX,insetTop+safeH*.377f,hw,safeH*.055f,options.profile);
         int s=ControlProfile.START,k=ControlProfile.COIN;
         half=rx[s];startX=cx[s];menuTop=cy[s]-ry[s];menuBottom=cy[s]+ry[s];coinTop=cy[k]-ry[k];coinBottom=cy[k]+ry[k];
     }

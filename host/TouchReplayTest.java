@@ -19,9 +19,12 @@ public final class TouchReplayTest {
         final PadLayout l; final TouchInput t=new TouchInput();
         Rig(int w,int h){l=new PadLayout(w,h);t.configure(l);}
         void event(int action,int changed,float[]... contacts){
+            at(0,action,changed,contacts);
+        }
+        void at(long time,int action,int changed,float[]... contacts){
             int n=contacts.length;int[] ids=new int[n];float[] xs=new float[n],ys=new float[n];
             for(int i=0;i<n;i++){ids[i]=(int)contacts[i][0];xs[i]=contacts[i][1];ys[i]=contacts[i][2];}
-            t.event(action,changed,n,ids,xs,ys);
+            t.event(action,changed,n,ids,xs,ys,time);
         }
         float[] stick(int id,double angle,double radius){
             double r=Math.toRadians(angle);
@@ -124,7 +127,107 @@ public final class TouchReplayTest {
             Rig r=new Rig(w,h);float[] a=r.button(1,0);
             r.event(DOWN_EVENT,1,a);r.event(UP_EVENT,1,a);
             r.event(DOWN_EVENT,8,r.stick(8,180,.7));
-            eq(r.poll(),LEFT|A,"new DOWN must not erase unconsumed tap");eq(r.poll(),LEFT,"tap consumed once");
+            eq(r.poll(),A,"tap keeps its neutral direction");eq(r.poll(),LEFT,"new gesture after tap");
+        });
+        test("slow double sweep both ways, final down and A in the same sample"+suffix,()->{
+            for(int dwell:new int[]{2,4,8,16,24})for(boolean left:new boolean[]{false,true}){
+                Rig r=new Rig(w,h);
+                int[] path=left?new int[]{4,3,2,4,3,2}:new int[]{0,1,2,0,1,2};
+                for(int i=0;i<path.length;i++){
+                    long start=(long)i*dwell*17;
+                    float[] s=r.stick(7,45*path[i],.8);
+                    if(i==5)r.at(start,POINTER_DOWN,2,s,r.button(2,0));
+                    else r.at(start,i==0?DOWN_EVENT:MOVE_EVENT,7,s);
+                    for(int f=0;f<dwell;f++)eq(r.t.poll(start+17L*f).keys,
+                            EIGHT[path[i]]|(i==5?A:0),"dwell="+dwell+" step="+i+" frame="+f);
+                }
+            }
+        });
+        test("overdue frames sample turns by timestamp; no replay into later frames"+suffix,()->{
+            Rig r=new Rig(w,h);
+            r.at(5,DOWN_EVENT,7,r.stick(7,0,.8));
+            eq(r.t.poll(16).keys,RIGHT,"first frame");
+            r.at(22,MOVE_EVENT,7,r.stick(7,45,.8));
+            r.at(40,MOVE_EVENT,7,r.stick(7,90,.8));
+            eq(r.t.poll(33).keys,RIGHT|DOWN,"diagonal at outstanding frame");
+            eq(r.t.poll(50).keys,DOWN,"last direction");
+            r.at(52,MOVE_EVENT,7,r.stick(7,45,.8));
+            r.at(54,MOVE_EVENT,7,r.stick(7,0,.8));
+            eq(r.t.poll(67).keys,RIGHT,"two turns inside one frame");
+            eq(r.t.poll(84).keys,RIGHT,"no direction backlog");
+        });
+        test("punch uses its own direction at the next poll, including during catch-up"+suffix,()->{
+            Rig r=new Rig(w,h);float[] down=r.stick(7,90,.8),right=r.stick(7,0,.8),a=r.button(1,0);
+            r.at(2,DOWN_EVENT,7,right);eq(r.t.poll(16).keys,RIGHT,"initial");
+            r.at(28,MOVE_EVENT,7,r.stick(7,45,.8));
+            r.at(43,POINTER_DOWN,1,down,a);
+            r.at(45,POINTER_UP,1,right,a);
+            eq(r.t.poll(33).keys,DOWN|A,"press immediately, sample the direction at touch-down");
+            eq(r.t.poll(50).keys,RIGHT,"released and latest direction");
+            eq(r.t.poll(67).keys,RIGHT,"no stale diagonal or second punch");
+        });
+        test("punch finishing a turn between polls"+suffix,()->{
+            for(int order=0;order<4;order++){
+                Rig r=new Rig(w,h);
+                float[] down=r.stick(7,90,.8),diagonal=r.stick(7,45,.8),right=r.stick(7,0,.8),a=r.button(1,0);
+                r.at(1,DOWN_EVENT,7,down);eq(r.t.poll(16).keys,DOWN,"start quarter-circle");
+                r.at(18,MOVE_EVENT,7,diagonal);eq(r.t.poll(33).keys,RIGHT|DOWN,"cross diagonal");
+                r.at(36,POINTER_DOWN,1,diagonal,a);
+                if(order==2){
+                    r.at(39,POINTER_UP,1,diagonal,a);
+                    r.at(42,MOVE_EVENT,7,right);
+                }else{
+                    r.at(39,MOVE_EVENT,7,right,a);
+                    if(order==1)r.at(42,POINTER_UP,1,right,a);
+                    if(order==3)r.at(42,POINTER_UP,7,right,a);
+                }
+                eq(r.t.poll(50).keys,order==2?RIGHT|DOWN|A:RIGHT|A,"first poll after punch, order="+order);
+                int held=order==0?RIGHT|A:order==3?A:RIGHT;
+                eq(r.t.poll(67).keys,order==1?RIGHT|A:held,"second sample, order="+order);
+                eq(r.t.poll(84).keys,held,"no replay, order="+order);
+            }
+        });
+        test("short turn-ending attack releases and yields to real controls"+suffix,()->{
+            for(int next=0;next<5;next++){
+                Rig r=new Rig(w,h);
+                float[] diagonal=r.stick(7,45,.8),right=r.stick(7,0,.8),left=r.stick(7,180,.8);
+                float[] a=r.button(1,0),b=r.button(2,1);
+                r.event(DOWN_EVENT,7,diagonal);r.poll();
+                r.event(POINTER_DOWN,1,right,a);r.event(POINTER_UP,1,right,a);
+                eq(r.poll(),RIGHT|A,"turn and punch on first poll");
+                if(next==0){
+                    r.event(UP_EVENT,7,right);
+                    eq(r.poll(),A,"stick releases immediately");eq(r.poll(),0,"tap released");
+                }else if(next==1){
+                    r.event(POINTER_DOWN,2,right,b);
+                    eq(r.poll(),RIGHT|B,"new button wins");eq(r.poll(),RIGHT|B,"no false A+B");
+                }else if(next==2){
+                    r.event(MOVE_EVENT,7,left);r.event(MOVE_EVENT,7,right);
+                    eq(r.poll(),RIGHT,"an intervening turn ends the tap");
+                }else if(next==3){
+                    eq(r.t.poll(100,B).keys,RIGHT,"physical button wins");eq(r.poll(),RIGHT,"no late A");
+                }else{
+                    r.t.reset();eq(r.poll(),0,"pause drops the extra sample");
+                }
+            }
+        });
+        test("released chord member does not follow a later turn"+suffix,()->{
+            Rig r=new Rig(w,h);
+            float[] diagonal=r.stick(7,45,.8),right=r.stick(7,0,.8),a=r.button(1,0),b=r.button(2,1);
+            r.event(DOWN_EVENT,7,diagonal);r.poll();
+            r.event(POINTER_DOWN,1,diagonal,a);r.event(POINTER_DOWN,2,diagonal,a,b);
+            r.event(POINTER_UP,2,diagonal,a,b);r.event(MOVE_EVENT,7,right,a);
+            eq(r.poll(),RIGHT|DOWN|A|B,"chord keeps last direction shared by both buttons");
+            eq(r.poll(),RIGHT|A,"only A continues");
+        });
+        test("separate quick taps and genuine overlapping taps"+suffix,()->{
+            Rig r=new Rig(w,h);float[] a=r.button(1,0),b=r.button(2,1);
+            r.event(DOWN_EVENT,1,a);r.event(UP_EVENT,1,a);
+            r.event(DOWN_EVENT,2,b);r.event(UP_EVENT,2,b);
+            eq(r.poll(),B,"last independent tap, no false A+B");eq(r.poll(),0,"released");
+            r.event(DOWN_EVENT,1,a);r.event(POINTER_DOWN,2,b,a);
+            r.event(POINTER_UP,2,a,b);r.event(UP_EVENT,1,a);
+            eq(r.poll(),A|B,"true transient chord");eq(r.poll(),0,"chord released");
         });
         test("START never turns into an attack and releases"+suffix,()->{
             Rig r=new Rig(w,h);float[] p=r.start(6);
