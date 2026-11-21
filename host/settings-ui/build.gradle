@@ -23,7 +23,7 @@ test {
     systemProperty 'robolectric.dependency.repo.url','https://repo.maven.apache.org/maven2'
     systemProperty 'maven.repo.local',file('../../tooling/ui-maven').absolutePath
     systemProperty 'k98.apk',file('../../release/KOF98-K12s.apk').absolutePath
-    systemProperty 'k98.evidence',file(System.getenv('K98_TEST_EVIDENCE') ?: '../../evidence/v0.9-preview').absolutePath
+    systemProperty 'k98.evidence',file(System.getenv('K98_TEST_EVIDENCE') ?: '../../evidence/v0.10-preview').absolutePath
     doFirst { file(systemProperties['k98.evidence']).mkdirs() }
     testLogging { events 'passed','failed','skipped'; exceptionFormat='full' }
 }

@@ -53,4 +53,31 @@ public class CenteringWindowTest {
             try(FileOutputStream out=new FileOutputStream(file)){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}
         }
     }
+
+    @Test public void picturePixelsReachTopAndBottomWithSafeInsets() throws Exception {
+        int[][] sizes={{800,360},{480,270},{2393,1081}};
+        for(int[] size:sizes)for(boolean full:new boolean[]{false,true})for(boolean reverse:new boolean[]{false,true}) {
+            int width=size[0],height=size[1];
+            Controls controls=new Controls(width,height,false,new DisplayOptions(full,true,50),reverse?54:0,reverse?24:0,reverse?0:54,reverse?0:24,54);
+            assertEquals("top edge must reach the screen",0,controls.video.top,0);
+            assertEquals("bottom edge must reach the screen",height,controls.video.bottom,0);
+            assertEquals(width/2f,controls.video.centerX(),.001f);
+            assertEquals(4f/3,controls.video.width()/controls.video.height(),.001f);
+            assertTrue("controls keep their safe area",controls.dy+controls.dr<=height-(reverse?0:24));
+            Bitmap frame=Bitmap.createBitmap(320,240,Bitmap.Config.ARGB_8888);
+            Canvas source=new Canvas(frame);source.drawColor(0xff217764);
+            Paint marker=new Paint();marker.setColor(0xffe06030);source.drawRect(0,0,320,1,marker);
+            marker.setColor(0xff4080e0);source.drawRect(0,239,320,240,marker);
+            Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
+            Canvas canvas=new Canvas(bitmap);canvas.drawColor(0xff151819);
+            canvas.drawBitmap(frame,null,controls.video,new Paint());
+            controls.draw(canvas,0,0,0,255);
+            assertEquals("first source row remains visible",0xffe06030,bitmap.getPixel(width/2,0));
+            assertEquals("last source row remains visible",0xff4080e0,bitmap.getPixel(width/2,height-1));
+            for(int y=1;y<height-1;y++)assertNotEquals("no vertical letterbox at row "+y,0xff151819,bitmap.getPixel(width/2,y));
+            File file=new File(System.getProperty("k98.evidence"),"full-height-"+width+"x"+height+"-"+(full?"fullscreen":"classic")+(reverse?"-left":"-right")+".png");
+            try(FileOutputStream out=new FileOutputStream(file)){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}
+            frame.recycle();bitmap.recycle();
+        }
+    }
 }

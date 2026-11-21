@@ -27,7 +27,6 @@ public final class DisplayFlowTest {
     }
     private static void screen(int w, int h, int left, int top, int right, int bottom) {
         for(boolean arcade : new boolean[]{false,true}) {
-            PadLayout original = new PadLayout(w,h,arcade);
             for (boolean full : new boolean[]{false,true}) for(boolean keep : new boolean[]{false,true}) {
                 for(int transparency : new int[]{0,50,99,100}) {
                     cases++;
@@ -39,15 +38,10 @@ public final class DisplayFlowTest {
                         near(pad.videoRight,w,"fill right"); near(pad.videoBottom,h,"fill bottom");
                     } else {
                         near(width/height,4f/3,"aspect");
-                        if(full) {
-                            near(pad.videoLeft,w-pad.videoRight,"center X");
-                            near(pad.videoTop,h-pad.videoBottom,"center Y");
-                            check(Math.abs(width-w)<.002f || Math.abs(height-h)<.002f,"largest 4:3");
-                        } else if((left|top|right|bottom)==0) {
-                            near(pad.videoLeft,original.videoLeft,"classic X");
-                            near(pad.videoTop,original.videoTop,"classic Y");
-                            check(pad.videoLeft>0,"classic control lane");
-                        }
+                        near(pad.videoLeft,w-pad.videoRight,"center X");
+                        near(pad.videoTop,h-pad.videoBottom,"center Y");
+                        check(Math.abs(width-w)<.002f || Math.abs(height-h)<.002f,"largest 4:3");
+                        if(w*3>=h*4){near(pad.videoTop,0,"4:3 reaches top");near(pad.videoBottom,h,"4:3 reaches bottom");}
                     }
                     check(pad.dx-pad.dr>=left && pad.startX+pad.half<=w-right, "safe controls X");
                     check(pad.menuTop>=top && pad.dy+pad.dr<=h-bottom, "safe controls Y");

@@ -36,21 +36,15 @@ class PadLayout {
         gearLeft=insetLeft+safeW-gearExtent;gearBottom=insetTop+gearExtent;
         float classicWidth=Math.min(4f/3*safeH,safeW-2*Math.min(.35f*safeH,.16f*safeW));
         float lane=(safeW-classicWidth)*.5f;
-        if (options.fullscreen) {
-            float pictureWidth=options.keepAspect ? Math.min(w,h*4f/3) : w;
-            float pictureHeight=options.keepAspect ? pictureWidth*.75f : h;
-            videoLeft=(w-pictureWidth)*.5f;videoTop=(h-pictureHeight)*.5f;
-            videoRight=videoLeft+pictureWidth;videoBottom=videoTop+pictureHeight;
-        } else {
-            // Size the picture inside symmetric margins, but centre it on the whole screen.
-            // A camera/navigation inset on only one side must not shift the 4:3 image.
-            int pictureW=Math.max(1,w-2*Math.max(insetLeft,insetRight));
-            int pictureH=Math.max(1,h-2*Math.max(insetTop,insetBottom));
-            float pictureWidth=Math.min(4f/3*pictureH,pictureW-2*Math.min(.35f*pictureH,.16f*pictureW));
-            float pictureHeight=pictureWidth*.75f;
-            videoLeft=(w-pictureWidth)*.5f;videoTop=(h-pictureHeight)*.5f;
-            videoRight=videoLeft+pictureWidth;videoBottom=videoTop+pictureHeight;
+        // Fit video to the whole view. Insets and control lanes must not shrink it.
+        // Start from the limiting dimension so full-height edges stay exactly 0 and h.
+        float pictureWidth=w,pictureHeight=h;
+        if (!options.fullscreen || options.keepAspect) {
+            if (w*3L>=h*4L) pictureWidth=h*4f/3;
+            else pictureHeight=w*.75f;
         }
+        videoLeft=(w-pictureWidth)*.5f;videoTop=(h-pictureHeight)*.5f;
+        videoRight=w-videoLeft;videoBottom=h-videoTop;
         float stickX=insetLeft+lane*.5f,stickY=insetTop+safeH*.68f,rightX=w-insetRight-lane*.5f;
         float stickRadius=Math.min(lane*.446f,safeH*.187f);
         slot(ControlProfile.STICK,stickX,stickY,stickRadius,stickRadius,options.profile);
