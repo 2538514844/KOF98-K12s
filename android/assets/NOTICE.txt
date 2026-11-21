@@ -1,0 +1,6 @@
+Independent, offline test frontend for a locally imported Neo Geo title.
+FinalBurn Neo core: the FinalBurn Neo team, the Libretro team and contributors.
+Unmodified Android arm64-v8a libretro shared library from the official Libretro buildbot.
+Core source: https://github.com/libretro/FBNeo and https://github.com/finalburnneo/FBNeo
+Original game and system data are not included in this APK.
+Game titles and marks belong to their respective owners. See FBNeo-LICENSE.txt and MAME-LICENSE.txt.

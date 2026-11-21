@@ -1,0 +1,71 @@
+{
+  "version": "0.9",
+  "apkBytes": 107505663,
+  "apkSha256": "3a7f4a297efc5cd098efe75d630055a16eed445e74ee2186009a1e46f2293c0a",
+  "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+  "signatures": [
+    "v2",
+    "v3"
+  ],
+  "zipAlignment": "16KiB",
+  "architecture": "arm64-v8a",
+  "permissions": [],
+  "unchangedPayloadEntriesCompared": 349,
+  "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+  "deviceTested": false,
+  "baselineSha256": "50c9637d7394eee1ca5ef6be1697bbc65a0e3e750804d40b8258bfb55b57304a",
+  "sameSigner": true,
+  "tests": {
+    "CenteringRegressionTest": {
+      "exitCode": 0,
+      "output": "right inset=54: video center=1196.0, screen center=1196\nCENTERING PASS: 108 asymmetric-inset/display cases"
+    },
+    "DisplayFlowTest": {
+      "exitCode": 0,
+      "output": "DISPLAY PASS sizes=8 layout cases=768 assertions=10300"
+    },
+    "GuideLayoutTest": {
+      "exitCode": 0,
+      "output": "GUIDE & LAYOUT PASS: 51 fighters/forms + common controls, 275 entries, 96 custom layouts, 13333 assertions"
+    },
+    "TouchReplayTest": {
+      "exitCode": 0,
+      "output": "PASS outer overshoot retains direction; legacy reproduces drop @2392x1080\nPASS eight directions and both quarter-circle motions @2392x1080\nPASS diagonal boundary hysteresis @2392x1080\nPASS dead zone starts, holds, recenters and switches @2392x1080\nPASS one owner despite competing fingers; legacy opposite directions @2392x1080\nPASS pointer indices reordered and non-owner lifted @2392x1080\nPASS captured stick cannot become attack; legacy reproduces crossover @2392x1080\nPASS attack and empty-space fingers cannot become joystick @2392x1080\nPASS four attacks with joystick; combinations and releases @2392x1080\nPASS short attacks latch once while stick is held @2392x1080\nPASS pending short attack survives next gesture @2392x1080\nPASS START never turns into an attack and releases @2392x1080\nPASS cancel, pause reset and resize clear held and pending keys @2392x1080\nPASS visual knob follows and clamps; random circles never oppose @2392x1080\nPASS outer overshoot retains direction; legacy reproduces drop @2340x1080\nPASS eight directions and both quarter-circle motions @2340x1080\nPASS diagonal boundary hysteresis @2340x1080\nPASS dead zone starts, holds, recenters and switches @2340x1080\nPASS one owner despite competing fingers; legacy opposite directions @2340x1080\nPASS pointer indices reordered and non-owner lifted @2340x1080\nPASS captured stick cannot become attack; legacy reproduces crossover @2340x1080\nPASS attack and empty-space fingers cannot become joystick @2340x1080\nPASS four attacks with joystick; combinations and releases @2340x1080\nPASS short attacks latch once while stick is held @2340x1080\nPASS pending short attack survives next gesture @2340x1080\nPASS START never turns into an attack and releases @2340x1080\nPASS cancel, pause reset and resize clear held and pending keys @2340x1080\nPASS visual knob follows and clamps; random circles never oppose @2340x1080\nPASS outer overshoot retains direction; legacy reproduces drop @1920x1080\nPASS eight directions and both quarter-circle motions @1920x1080\nPASS diagonal boundary hysteresis @1920x1080\nPASS dead zone starts, holds, recenters and switches @1920x1080\nPASS one owner despite competing fingers; legacy opposite directions @1920x1080\nPASS pointer indices reordered and non-owner lifted @1920x1080\nPASS captured stick cannot become attack; legacy reproduces crossover @1920x1080\nPASS attack and empty-space fingers cannot become joystick @1920x1080\nPASS four attacks with joystick; combinations and releases @1920x1080\nPASS short attacks latch once while stick is held @1920x1080\nPASS pending short attack survives next gesture @1920x1080\nPASS START never turns into an attack and releases @1920x1080\nPASS cancel, pause reset and resize clear held and pending keys @1920x1080\nPASS visual knob follows and clamps; random circles never oppose @1920x1080\nPASS outer overshoot retains direction; legacy reproduces drop @1280x720\nPASS eight directions and both quarter-circle motions @1280x720\nPASS diagonal boundary hysteresis @1280x720\nPASS dead zone starts, holds, recenters and switches @1280x720\nPASS one owner despite competing fingers; legacy opposite directions @1280x720\nPASS pointer indices reordered and non-owner lifted @1280x720\nPASS captured stick cannot become attack; legacy reproduces crossover @1280x720\nPASS attack and empty-space fingers cannot become joystick @1280x720\nPASS four attacks with joystick; combinations and releases @1280x720\nPASS short attacks latch once while stick is held @1280x720\nPASS pending short attack survives next gesture @1280x720\nPASS START never turns into an attack and releases @1280x720\nPASS cancel, pause reset and resize clear held and pending keys @1280x720\nPASS visual knob follows and clamps; random circles never oppose @1280x720\nRESULT cases=56 assertions=200524 failures=0\nScope: production Java touch replay on host; Android event delivery and subjective device latency are not measured."
+    },
+    "FightPlaybackTest": {
+      "exitCode": 0,
+      "output": "PASS visibility-gated async preparation\nPASS pause during prepare / stale callbacks\nPASS pause and surface recreation preserve position\nPASS all six clips in each shuffled round / no boundary repeat\nPASS six decoder failures fall back without loop\nPASS synchronous preparation exception cleanup\nPASS start exception cleanup\nPASS success resets failures / terminal disposal\nPASS 60000 reordered lifecycle/callback events\nPLAYBACK PASS cases=9 assertions=67360"
+    }
+  },
+  "androidWidgetTests": [
+    {
+      "name": "local.k98.CenteringWindowTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "local.k98.PreviewRenderTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "local.k98.SettingsUITest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0"
+    }
+  ],
+  "baselineFailure": {
+    "screen": [
+      2392,
+      1080
+    ],
+    "rightInset": 54,
+    "oldCenterX": 1169,
+    "newCenterX": 1196,
+    "physicalScreenCenterX": 1196
+  },
+  "gameDataUnchanged": true
+}

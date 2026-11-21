@@ -1,0 +1,30 @@
+plugins { id 'java' }
+repositories { mavenCentral(); google() }
+configurations { androidAars }
+configurations.testRuntimeClasspath { exclude group:'androidx.test',module:'monitor'; exclude group:'androidx.test.espresso',module:'espresso-idling-resource' }
+configurations.testCompileClasspath { exclude group:'androidx.test',module:'monitor'; exclude group:'androidx.test.espresso',module:'espresso-idling-resource' }
+def sdk = System.getenv('K98_SDK') ?: 'G:/AndroidTools'
+def app = file('../../android/build/classes')
+dependencies {
+    testImplementation files(app, sdk+'/platforms/android-35/android.jar')
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+    androidAars('androidx.test:monitor:1.7.2@aar') { transitive=false }
+    androidAars('androidx.test.espresso:espresso-idling-resource:3.6.1@aar') { transitive=false }
+    testImplementation fileTree(layout.buildDirectory.dir('aar-jars')) { include '*.jar' }
+}
+tasks.register('unpackAars') {
+    inputs.files(configurations.androidAars); outputs.dir(layout.buildDirectory.dir('aar-jars'))
+    doLast { configurations.androidAars.each { f -> copy { from zipTree(f); include 'classes.jar'; rename { f.name+'.jar' }; into layout.buildDirectory.dir('aar-jars') } } }
+}
+tasks.compileTestJava.dependsOn('unpackAars');tasks.withType(JavaCompile).configureEach { options.encoding='UTF-8' }
+test {
+    useJUnit(); maxHeapSize='2g'
+    systemProperty 'robolectric.dependency.repo.url','https://repo.maven.apache.org/maven2'
+    systemProperty 'maven.repo.local',file('../../tooling/ui-maven').absolutePath
+    systemProperty 'k98.apk',file('../../release/KOF98-K12s.apk').absolutePath
+    systemProperty 'k98.evidence',file(System.getenv('K98_TEST_EVIDENCE') ?: '../../evidence/v0.9-preview').absolutePath
+    doFirst { file(systemProperties['k98.evidence']).mkdirs() }
+    testLogging { events 'passed','failed','skipped'; exceptionFormat='full' }
+}
+

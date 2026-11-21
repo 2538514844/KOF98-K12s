@@ -1,0 +1,57 @@
+{
+  "sourceFps": 59.18,
+  "captureStride": 2,
+  "playbackFps": 20,
+  "speedRatio": 0.6759040216289287,
+  "secondsPerClip": 15,
+  "clips": [
+    {
+      "file": "fight-1.mp4",
+      "fighter": "草薙京",
+      "frames": 300,
+      "uniqueFrames": 298,
+      "sha256": "c50d2f9c70075e3200239b0bc163a55dde230bb65a40d6db399650d64f317173",
+      "bytes": 1973450
+    },
+    {
+      "file": "fight-2.mp4",
+      "fighter": "二阶堂红丸",
+      "frames": 300,
+      "uniqueFrames": 300,
+      "sha256": "dc02ceae3f117c17dc804c50f3a45d69daed31ebfede60dc4fbdcfc9c5e6643d",
+      "bytes": 2272664
+    },
+    {
+      "file": "fight-3.mp4",
+      "fighter": "特瑞",
+      "frames": 300,
+      "uniqueFrames": 298,
+      "sha256": "e8f267d4416bf7bcf28c303c0d150c5b6ef2291c73c8a045f885ee76c8e368ea",
+      "bytes": 2447605
+    },
+    {
+      "file": "fight-4.mp4",
+      "fighter": "坂崎良",
+      "frames": 300,
+      "uniqueFrames": 299,
+      "sha256": "852d57f5ecaa3afe1410ffb4f1bcc64e283fbebfa4e64817eb46aea5651b8315",
+      "bytes": 2309310
+    },
+    {
+      "file": "fight-5.mp4",
+      "fighter": "麻宫雅典娜",
+      "frames": 300,
+      "uniqueFrames": 299,
+      "sha256": "76ffb7fd1e24262dd6814e5f8f9447b63beeb58b034f9f8e24ac3611eafd3735",
+      "bytes": 1986969
+    },
+    {
+      "file": "fight-6.mp4",
+      "fighter": "八神庵",
+      "frames": 300,
+      "uniqueFrames": 300,
+      "sha256": "c55705f57fff4f6facdbc88d6d4759853ca509249573789850108ee2ef0ad97c",
+      "bytes": 2253009
+    }
+  ]
+}
