@@ -67,5 +67,12 @@
     "newCenterX": 1196,
     "physicalScreenCenterX": 1196
   },
-  "gameDataUnchanged": true
+  "gameDataUnchanged": true,
+  "cleanCheckoutBuild": {
+    "passed": true,
+    "gameDataRequired": false,
+    "sameApplicationPayload": true,
+    "isolatedSigningKey": true,
+    "hostTestsPassed": true
+  }
 }
