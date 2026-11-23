@@ -13,6 +13,7 @@ import java.io.*;
 public final class Main extends Activity {
     private static final int PICK=98;
     private GameScreen game;
+    private BluetoothRoom bluetooth;
     private boolean resumed,busy,pausedMenu;
     private FrameLayout stage;private LoadingScreen loadingScreen;
     private NeoMode selectedMode = NeoMode.AES_EUR;
@@ -24,6 +25,7 @@ public final class Main extends Activity {
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
+        bluetooth=new BluetoothRoom(this);
         if(state!=null)selectedMode=NeoMode.fromName(state.getString("launchMode"));
         displayPrefs=getSharedPreferences("display",MODE_PRIVATE);
         DisplayOptions defaults=DisplayOptions.DEFAULT;
@@ -42,6 +44,7 @@ public final class Main extends Activity {
         boolean ready=DataDepot.ready(getFilesDir());
         boolean hasSave=selectedMode.canResume(DataDepot.root(getFilesDir()));
         loadingScreen=new LoadingScreen(this,ready,selectedMode,hasSave,err,this::play,this::pick,this::chooseMode);
+        if(ready)loadingScreen.addDuel(()->{if(!busy&&game==null)bluetooth.open();});
         stage.addView(loadingScreen,new FrameLayout.LayoutParams(-1,-1));
         settingsButton=DisplaySettings.gear(this);
         settingsButton.setOnClickListener(view -> openSettings());
@@ -90,6 +93,7 @@ public final class Main extends Activity {
         if(game!=null)game.setSafeInsets(left,top,right,bottom);
     }
     private void openSettings(){
+        if(game!=null&&game.duel!=null){bluetooth.gameMenu();return;}
         if(settingsDialog!=null || pausedMenu || busy || isFinishing() || (game!=null && loadingScreen!=null))return;
         if(game!=null)game.active(false);
         if(loadingScreen!=null)loadingScreen.active(false);
@@ -131,24 +135,33 @@ public final class Main extends Activity {
     }
     private void releaseLoading(){if(loadingScreen==null)return;loadingScreen.dispose();if(loadingScreen.getParent() instanceof ViewGroup)((ViewGroup)loadingScreen.getParent()).removeView(loadingScreen);loadingScreen=null;}
     private void pick(){if(busy)return;Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,PICK);}catch(ActivityNotFoundException ex){library("未找到系统文件选择器。");}}
-    @Override protected void onActivityResult(int req,int code,Intent intent){super.onActivityResult(req,code,intent);if(req!=PICK||code!=RESULT_OK||intent==null||intent.getData()==null||busy||loadingScreen==null)return;final Uri uri=intent.getData();busy=true;loadingScreen.busy("正在校验游戏数据…",false);
+    @Override public void onRequestPermissionsResult(int req,String[] names,int[] grants){super.onRequestPermissionsResult(req,names,grants);if(req==BluetoothRoom.PERMISSION)bluetooth.permissions(grants);}
+    @Override protected void onActivityResult(int req,int code,Intent intent){super.onActivityResult(req,code,intent);if(req==BluetoothRoom.ENABLE||req==BluetoothRoom.VISIBLE){bluetooth.result(req,code);return;}if(req!=PICK||code!=RESULT_OK||intent==null||intent.getData()==null||busy||loadingScreen==null)return;final Uri uri=intent.getData();busy=true;loadingScreen.busy("正在校验游戏数据…",false);
         new Thread(()->{String failure=null;try(InputStream stream=getContentResolver().openInputStream(uri)){if(stream==null)throw new IOException("无法打开数据包。");DataDepot.install(getFilesDir(),stream,p->runOnUiThread(()->{if(!isDestroyed()&&busy&&loadingScreen!=null)loadingScreen.progress(p);}));}catch(Exception ex){failure=ex.getMessage();if(failure==null)failure=ex.getClass().getSimpleName();}final String msg=failure;runOnUiThread(()->{if(isFinishing()||isDestroyed())return;busy=false;if(msg==null)play();else library("导入失败："+msg);});},"k98-import").start();
     }
-    private void play(){
+    private void play(){launch(null);}
+    void playDuel(DuelRound round){launch(round);}
+    void stopDuel(){
+        if(game==null||game.duel==null)return;
+        game.shutdown();game=null;pausedMenu=false;
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);library(null);
+    }
+    private void launch(DuelRound round){
         if(game!=null||busy)return;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if(loadingScreen!=null)loadingScreen.busy("正在启动游戏…",true);
-        game=new GameScreen(this,DataDepot.root(getFilesDir()),selectedMode,displayOptions);
+        if(loadingScreen!=null)loadingScreen.busy(round==null?"正在启动游戏…":"正在同步蓝牙对战…",true);
+        game=new GameScreen(this,DataDepot.root(getFilesDir()),round==null?selectedMode:NeoMode.AES_EUR,displayOptions,round);
         game.setSafeInsets(safeLeft,safeTop,safeRight,safeBottom);
         setCutoutMode();
         stage.addView(game,0,new FrameLayout.LayoutParams(-1,-1));
         stage.requestApplyInsets();
         game.active(resumed && !pausedMenu && settingsDialog==null);
     }
-    void started(GameScreen sender){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;releaseLoading();game.requestFocus();});}
-    void failed(GameScreen sender,String msg){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;game.shutdown();game=null;pausedMenu=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);library("游戏启动或运行失败："+msg);});}
+    void started(GameScreen sender){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;releaseLoading();game.requestFocus();if(sender.duel!=null)note(sender.duel.localP1?"你是 1P · 左侧开局":"你是 2P · 右侧开局");});}
+    void failed(GameScreen sender,String msg){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;if(game.duel!=null){bluetooth.roundFailed(msg);return;}game.shutdown();game=null;pausedMenu=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);library("游戏启动或运行失败："+msg);});}
     void note(String msg){runOnUiThread(()->{if(!isDestroyed()&&!isFinishing())Toast.makeText(this,msg,Toast.LENGTH_LONG).show();});}
     void pauseMenu(){
+        if(game!=null&&game.duel!=null){bluetooth.gameMenu();return;}
         if(game==null||pausedMenu||settingsDialog!=null||isFinishing())return;
         pausedMenu=true;game.active(false);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("游戏已暂停")
@@ -163,7 +176,9 @@ public final class Main extends Activity {
     @Override protected void onPause(){resumed=false;if(loadingScreen!=null)loadingScreen.active(false);if(game!=null)game.active(false);super.onPause();}
     @Override protected void onResume(){super.onResume();resumed=true;immersive();if(loadingScreen!=null)loadingScreen.active(settingsDialog==null);if(game!=null&&!pausedMenu&&settingsDialog==null)game.active(true);}
     @Override protected void onDestroy(){
+        bluetooth.close();
         if(settingsDialog!=null){settingsDialog.setOnDismissListener(null);settingsDialog.dismiss();settingsDialog=null;}
         releaseLoading();if(game!=null)game.shutdown();super.onDestroy();
     }
+    @Override protected void onStop(){super.onStop();bluetooth.background();}
 }

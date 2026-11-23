@@ -30,6 +30,9 @@ public final class TouchReplayTest {
             double r=Math.toRadians(angle);
             return new float[]{id,l.dx+(float)(Math.cos(r)*radius*l.dr),l.dy+(float)(Math.sin(r)*radius*l.dr)};
         }
+        float[] stickOffset(int id,float x,float y){
+            return new float[]{id,l.dx+x*l.dr,l.dy+y*l.dr};
+        }
         float[] button(int id,int i){return new float[]{id,l.bx[i],l.by[i]};}
         float[] start(int id){return new float[]{id,l.startX,(l.menuTop+l.menuBottom)/2};}
         int poll(){return t.poll().keys;}
@@ -74,7 +77,49 @@ public final class TouchReplayTest {
             r.event(MOVE_EVENT,0,r.stick(0,0,.17));eq(r.poll(),RIGHT,"leave center");
             r.event(MOVE_EVENT,0,r.stick(0,0,.13));eq(r.poll(),RIGHT,"radial hysteresis");
             r.event(MOVE_EVENT,0,r.stick(0,0,.1));eq(r.poll(),0,"return to center");
-            r.event(MOVE_EVENT,0,r.stick(0,180,.17));eq(r.poll(),LEFT,"reverse");
+            r.event(MOVE_EVENT,0,r.stick(0,180,.17));eq(r.poll(),0,"small overshoot stays neutral");
+            r.event(MOVE_EVENT,0,r.stick(0,180,.27));eq(r.poll(),LEFT,"deliberate reverse");
+        });
+        test("center overshoot into down and forward diagonal with punch"+suffix,()->{
+            for(int sign:new int[]{1,-1}){
+                Rig r=new Rig(w,h);
+                int forward=sign>0?RIGHT:LEFT;
+                r.event(DOWN_EVENT,7,r.stickOffset(7,sign*.75f,0));eq(r.poll(),forward,"forward");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,0,0));eq(r.poll(),0,"center");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.20f,0));eq(r.poll(),0,"overshoot");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.16f,.13f));eq(r.poll(),0,"shallow diagonal");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.17f,.20f));eq(r.poll(),DOWN,"down despite overshoot");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,0,.65f));eq(r.poll(),DOWN,"straight down");
+
+                float[] finish=r.stickOffset(7,sign*.18f,.19f),a=r.button(1,0);
+                r.event(POINTER_DOWN,1,finish,a);
+                r.event(POINTER_UP,1,finish,a);
+                eq(r.poll(),forward|DOWN|A,"shallow finishing diagonal and punch together");
+            }
+        });
+        test("horizontal and diagonal reversals take effect on the crossing sample"+suffix,()->{
+            for(int sign:new int[]{1,-1}){
+                Rig r=new Rig(w,h);
+                int forward=sign>0?RIGHT:LEFT,back=sign>0?LEFT:RIGHT;
+                r.event(DOWN_EVENT,7,r.stickOffset(7,sign*.75f,0));eq(r.poll(),forward,"forward");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.25f,0));eq(r.poll(),0,"skipped center sample");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.27f,0));eq(r.poll(),back,"horizontal reversal");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.18f,0));eq(r.poll(),back,"keep accepted reversal");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,sign*.23f,-.20f));eq(r.poll(),UP,"keep vertical component");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,sign*.23f,-.24f));eq(r.poll(),forward|UP,"radial reversal");
+                r.event(MOVE_EVENT,7,r.stickOffset(7,-sign*.8f,0));eq(r.poll(),back,"fast full reversal");
+            }
+        });
+        test("only the stick owner's release clears the previous side"+suffix,()->{
+            Rig r=new Rig(w,h);
+            float[] right=r.stick(7,0,.75),left=r.stick(7,180,.18),a=r.button(3,0);
+            r.event(DOWN_EVENT,7,right);r.poll();
+            r.event(POINTER_DOWN,3,right,a);r.poll();
+            r.event(POINTER_UP,3,right,a);r.poll();
+            r.event(MOVE_EVENT,7,left);eq(r.poll(),0,"releasing punch preserves stick history");
+            r.event(POINTER_DOWN,3,left,a);eq(r.poll(),A,"neutral punch");
+            r.event(POINTER_UP,7,left,a);eq(r.poll(),A,"punch stays held");
+            r.event(POINTER_DOWN,7,left,a);eq(r.poll(),LEFT|A,"fresh stick can start shallow to the left");
         });
         test("one owner despite competing fingers; legacy opposite directions"+suffix,()->{
             Rig r=new Rig(w,h);LegacyControls old=new LegacyControls(w,h);
@@ -143,7 +188,7 @@ public final class TouchReplayTest {
                 }
             }
         });
-        test("overdue frames sample turns by timestamp; no replay into later frames"+suffix,()->{
+        test("overdue frames keep turn order across port reads"+suffix,()->{
             Rig r=new Rig(w,h);
             r.at(5,DOWN_EVENT,7,r.stick(7,0,.8));
             eq(r.t.poll(16).keys,RIGHT,"first frame");
@@ -153,8 +198,62 @@ public final class TouchReplayTest {
             eq(r.t.poll(50).keys,DOWN,"last direction");
             r.at(52,MOVE_EVENT,7,r.stick(7,45,.8));
             r.at(54,MOVE_EVENT,7,r.stick(7,0,.8));
-            eq(r.t.poll(67).keys,RIGHT,"two turns inside one frame");
-            eq(r.t.poll(84).keys,RIGHT,"no direction backlog");
+            eq(r.t.poll(67).keys,RIGHT|DOWN,"first turn inside one frame");
+            eq(r.t.poll(84).keys,RIGHT,"second turn on the next port read");
+            eq(r.t.poll(101).keys,RIGHT,"no direction backlog");
+        });
+        test("excessive turn backlog stays bounded and keeps newest directions"+suffix,()->{
+            Rig r=new Rig(w,h);int total=25,capacity=16;
+            for(int i=0;i<total;i++){
+                float[] p=r.stick(7,45*(i%8),.8);
+                r.at(i+1,i==0?DOWN_EVENT:MOVE_EVENT,7,p);
+            }
+            for(int i=total-capacity;i<total;i++)
+                eq(r.t.poll().keys,EIGHT[i%8],"retained direction "+i);
+        });
+        test("rapid 236 keeps each direction and the finishing punch"+suffix,()->{
+            Rig r=new Rig(w,h);
+            float[] down=r.stick(7,90,.8),diagonal=r.stick(7,45,.8),right=r.stick(7,0,.8),a=r.button(1,0);
+            r.at(1,DOWN_EVENT,7,down);eq(r.t.poll(17).keys,DOWN,"start down");
+            r.at(18,MOVE_EVENT,7,diagonal);
+            r.at(20,POINTER_DOWN,1,right,a);
+            r.at(21,POINTER_UP,1,right,a);
+            eq(r.t.poll(34).keys,RIGHT|DOWN,"middle diagonal survives the fast sweep");
+            eq(r.t.poll(51).keys,RIGHT|A,"punch stays on the final direction");
+            eq(r.t.poll(68).keys,RIGHT|A,"short finishing tap gets one extra sample");
+            eq(r.t.poll(85).keys,RIGHT,"tap releases cleanly");
+        });
+        test("rapid 236236 keeps both half-circles and the final punch"+suffix,()->{
+            Rig r=new Rig(w,h);
+            float[] down=r.stick(7,90,.8),diagonal=r.stick(7,45,.8),right=r.stick(7,0,.8),a=r.button(1,0);
+            r.at(1,DOWN_EVENT,7,down);eq(r.t.poll(17).keys,DOWN,"start first half-circle");
+            r.at(18,MOVE_EVENT,7,diagonal);
+            r.at(20,MOVE_EVENT,7,right);
+            r.at(22,MOVE_EVENT,7,down);
+            r.at(24,MOVE_EVENT,7,diagonal);
+            r.at(26,POINTER_DOWN,1,right,a);
+            r.at(27,POINTER_UP,1,right,a);
+            eq(r.t.poll(34).keys,RIGHT|DOWN,"first diagonal");
+            eq(r.t.poll(51).keys,RIGHT,"first forward");
+            eq(r.t.poll(68).keys,DOWN,"second half-circle starts at down");
+            eq(r.t.poll(85).keys,RIGHT|DOWN,"second diagonal");
+            eq(r.t.poll(102).keys,RIGHT|A,"final forward and punch");
+            eq(r.t.poll(119).keys,RIGHT|A,"finishing punch survives one more sample");
+            eq(r.t.poll(136).keys,RIGHT,"punch releases cleanly");
+        });
+        test("held-forward 623 sweep keeps down and return diagonal"+suffix,()->{
+            Rig r=new Rig(w,h);
+            float[] right=r.stick(7,0,.8),diagonal=r.stick(7,45,.8),down=r.stick(7,90,.8),a=r.button(1,0);
+            r.at(1,DOWN_EVENT,7,right);eq(r.t.poll(17).keys,RIGHT,"hold forward");
+            r.at(18,MOVE_EVENT,7,diagonal);
+            r.at(20,MOVE_EVENT,7,down);
+            r.at(22,POINTER_DOWN,1,diagonal,a);
+            r.at(23,POINTER_UP,1,diagonal,a);
+            eq(r.t.poll(34).keys,RIGHT|DOWN,"outbound diagonal");
+            eq(r.t.poll(51).keys,DOWN,"pure down survives");
+            eq(r.t.poll(68).keys,RIGHT|DOWN|A,"return diagonal and punch");
+            eq(r.t.poll(85).keys,RIGHT|DOWN|A,"short finishing tap gets one extra sample");
+            eq(r.t.poll(102).keys,RIGHT|DOWN,"tap releases cleanly");
         });
         test("punch uses its own direction at the next poll, including during catch-up"+suffix,()->{
             Rig r=new Rig(w,h);float[] down=r.stick(7,90,.8),right=r.stick(7,0,.8),a=r.button(1,0);
@@ -162,9 +261,10 @@ public final class TouchReplayTest {
             r.at(28,MOVE_EVENT,7,r.stick(7,45,.8));
             r.at(43,POINTER_DOWN,1,down,a);
             r.at(45,POINTER_UP,1,right,a);
-            eq(r.t.poll(33).keys,DOWN|A,"press immediately, sample the direction at touch-down");
-            eq(r.t.poll(50).keys,RIGHT,"released and latest direction");
-            eq(r.t.poll(67).keys,RIGHT,"no stale diagonal or second punch");
+            eq(r.t.poll(33).keys,RIGHT|DOWN,"earlier diagonal stays ahead of the punch");
+            eq(r.t.poll(50).keys,DOWN|A,"punch uses the direction at touch-down");
+            eq(r.t.poll(67).keys,RIGHT,"later direction follows the punch");
+            eq(r.t.poll(84).keys,RIGHT,"no stale punch");
         });
         test("punch finishing a turn between polls"+suffix,()->{
             for(int order=0;order<4;order++){
@@ -181,9 +281,10 @@ public final class TouchReplayTest {
                     if(order==1)r.at(42,POINTER_UP,1,right,a);
                     if(order==3)r.at(42,POINTER_UP,7,right,a);
                 }
-                eq(r.t.poll(50).keys,order==2?RIGHT|DOWN|A:RIGHT|A,"first poll after punch, order="+order);
+                eq(r.t.poll(50).keys,RIGHT|DOWN|A,"punch remains on its touch-down direction, order="+order);
                 int held=order==0?RIGHT|A:order==3?A:RIGHT;
-                eq(r.t.poll(67).keys,order==1?RIGHT|A:held,"second sample, order="+order);
+                int next=order==2?RIGHT:RIGHT|A;
+                eq(r.t.poll(67).keys,next,"next queued direction, order="+order);
                 eq(r.t.poll(84).keys,held,"no replay, order="+order);
             }
         });
@@ -203,7 +304,9 @@ public final class TouchReplayTest {
                     eq(r.poll(),RIGHT|B,"new button wins");eq(r.poll(),RIGHT|B,"no false A+B");
                 }else if(next==2){
                     r.event(MOVE_EVENT,7,left);r.event(MOVE_EVENT,7,right);
-                    eq(r.poll(),RIGHT,"an intervening turn ends the tap");
+                    eq(r.poll(),LEFT,"first intervening turn ends the tap");
+                    eq(r.poll(),RIGHT,"next turn remains ordered");
+                    eq(r.poll(),RIGHT,"no late punch");
                 }else if(next==3){
                     eq(r.t.poll(100,B).keys,RIGHT,"physical button wins");eq(r.poll(),RIGHT,"no late A");
                 }else{

@@ -75,7 +75,8 @@ def main():
     cmd(BT/'zipalign.exe','-c','-P','16','-v','4',final,record='android-zipalign.txt')
     badge=cmd(BT/'aapt.exe','dump','badging',final,record='android-badging.txt')
     assert "package: name='local.k98'" in badge and "launchable-activity: name='local.k98.Main'" in badge and "native-code: 'arm64-v8a'" in badge
-    perms=cmd(BT/'aapt.exe','dump','permissions',final,record='android-permissions.txt');assert 'uses-permission' not in perms
+    perms=cmd(BT/'aapt.exe','dump','permissions',final,record='android-permissions.txt')
+    assert 'android.permission.BLUETOOTH_CONNECT' in perms and 'android.permission.INTERNET' not in perms
     with z.ZipFile(final) as f:assert not any(n.lower().endswith('.zip') or 'roms/' in n for n in f.namelist())
     if args.apk_only:
         with final.open('rb') as f:print(final.name,final.stat().st_size,hashlib.file_digest(f,'sha256').hexdigest(),flush=True)

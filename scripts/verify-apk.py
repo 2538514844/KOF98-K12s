@@ -39,7 +39,11 @@ def main():
     badge=run(BT/'aapt.exe','dump','badging',args.apk)
     assert "package: name='local.k98'" in badge and "launchable-activity: name='local.k98.Main'" in badge
     assert "native-code: 'arm64-v8a'" in badge
-    assert 'uses-permission' not in run(BT/'aapt.exe','dump','permissions',args.apk)
+    perms=sorted(set(re.findall(r"uses-permission[^:]*: name='([^']+)'",badge)))
+    bluetooth={'android.permission.'+p for p in ('BLUETOOTH','BLUETOOTH_ADMIN','ACCESS_FINE_LOCATION',
+                                                 'BLUETOOTH_SCAN','BLUETOOTH_CONNECT','BLUETOOTH_ADVERTISE')}
+    code=int(re.search(r"versionCode='(\d+)'",badge)[1])
+    assert set(perms)==(bluetooth if code>=16 else set()),perms
     version=re.search(r"versionName='([^']+)'",badge)[1]
     count=0
     with zipfile.ZipFile(args.apk) as apk:
@@ -53,10 +57,11 @@ def main():
                 assert set(old.namelist())==set(apk.namelist())
                 for name in old.namelist():
                     if name in ('classes.dex','AndroidManifest.xml') or name.startswith('META-INF/'):continue
+                    if code>=16 and name=='lib/arm64-v8a/libk98front.so':continue
                     assert old.read(name)==apk.read(name),'Unexpected payload change: '+name
                     count+=1
                 assert old.read('classes.dex')!=apk.read('classes.dex')
-    report={'version':version,'apkBytes':args.apk.stat().st_size,'apkSha256':sha(args.apk),'certificateSha256':signer,'signatures':['v2','v3'],'zipAlignment':'16KiB','architecture':'arm64-v8a','permissions':[],'unchangedPayloadEntriesCompared':count,'coreSha256':CORE_SHA,'deviceTested':False}
+    report={'version':version,'apkBytes':args.apk.stat().st_size,'apkSha256':sha(args.apk),'certificateSha256':signer,'signatures':['v2','v3'],'zipAlignment':'16KiB','architecture':'arm64-v8a','permissions':perms,'unchangedPayloadEntriesCompared':count,'coreSha256':CORE_SHA,'deviceTested':False}
     if args.baseline:report.update(baselineSha256=sha(args.baseline),sameSigner=True)
     if args.output:
         args.output.parent.mkdir(parents=True,exist_ok=True)

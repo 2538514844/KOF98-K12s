@@ -15,6 +15,7 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     private static final long MAX_LAG_NANOS=100_000_000L;
     private final Object signal=new Object(),drawing=new Object(); private final Main host; private final File root; private final AtomicFile save;
     private final NeoMode mode;
+    final DuelRound duel;
     private volatile DisplayOptions displayOptions;
     private int insetLeft,insetTop,insetRight,insetBottom;
     private final AtomicInteger taps=new AtomicInteger();private volatile int physical,stick;
@@ -24,7 +25,10 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     private volatile boolean foreground,surface,dead; private volatile Controls layout;
     private final Paint videoPaint=new Paint(); private final Paint loading=new Paint(Paint.ANTI_ALIAS_FLAG);
     GameScreen(Main main,File folder,NeoMode mode,DisplayOptions options){
-        super(main);host=main;root=folder;this.mode=mode;displayOptions=options;
+        this(main,folder,mode,options,null);
+    }
+    GameScreen(Main main,File folder,NeoMode mode,DisplayOptions options,DuelRound duel){
+        super(main);host=main;root=folder;this.mode=mode;displayOptions=options;this.duel=duel;
         save=new AtomicFile(mode.resumeFile(root));
         setFocusableInTouchMode(true);setFocusable(true);getHolder().addCallback(this);
         videoPaint.setFilterBitmap(false);loading.setColor(0xffdedbcf);loading.setTextAlign(Paint.Align.CENTER);
@@ -99,13 +103,24 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     private void restore(){try(DataInputStream in=new DataInputStream(new BufferedInputStream(save.openRead()))){int size=Bridge.stateSize();if(size<=0||in.readInt()!=0x4b393801||in.readInt()!=size)return;byte[] bytes=new byte[size];in.readFully(bytes);if(!Bridge.state(bytes,false))host.note("未能恢复上次进度，已重新启动。");}catch(FileNotFoundException ignored){}catch(IOException ex){host.note("存档读取失败，已重新启动。");}}
     private void checkpoint(){int size=Bridge.stateSize();if(size<=0)return;byte[] bytes=new byte[size];if(!Bridge.state(bytes,true))return;FileOutputStream out=null;try{out=save.startWrite();DataOutputStream d=new DataOutputStream(out);d.writeInt(0x4b393801);d.writeInt(size);d.write(bytes);d.flush();save.finishWrite(out);}catch(IOException ex){if(out!=null)save.failWrite(out);host.note("未能保存进度，请检查手机剩余空间。");}}
     @Override public void run(){try{awaitReady();if(dead)return;synchronized(CORE){if(dead)return;session();}}catch(InterruptedException ex){Thread.currentThread().interrupt();}catch(IOException|LinkageError|RuntimeException ex){host.failed(this,ex.getMessage());}}
-    private int openCore(File system) {
+    private int openCore(File system) throws IOException {
+        File saves=duel==null?mode.saveDirectory(root):new File(root,"bluetooth/save");
+        if(!saves.isDirectory()&&!saves.mkdirs())throw new IOException("无法创建游戏存档目录");
         return Bridge.openMode(root.getAbsolutePath(),system.getAbsolutePath(),
-                               mode.saveDirectory(root).getAbsolutePath(),mode.name());
+                               saves.getAbsolutePath(),mode.name());
     }
     private void session() throws InterruptedException,IOException {
         int[] rgb=new int[640*512],wh=new int[2];short[] pcm=new short[8192];Bitmap frame=null;AudioTrack out=null;boolean dirty=false,open=false,wantAudio=true,audioNotified=false,announced=false;long tick=0;int frames=0;
-        try{paint(null,0,0,0);File system=ModeFiles.prepare(root,mode);int rc=openCore(system);if(rc!=0){host.failed(this,mode.name()+" 载入失败 ("+rc+")。请检查游戏数据。");return;}open=true;restore();long step=Math.round(1e9/Bridge.fps());int rate=Bridge.rate();
+        try{paint(null,0,0,0);File system=ModeFiles.prepare(root,mode);int rc=openCore(system);if(rc!=0){host.failed(this,mode.name()+" 载入失败 ("+rc+")。请检查游戏数据。");return;}open=true;
+            if(duel==null)restore();
+            else{
+                if(duel.host)for(int i=0;i<1080;i++){
+                    if(dead)return;
+                    if(Bridge.frame(DuelRound.menuKeys(i,duel.team),rgb,pcm,wh)<0)throw new IOException("无法进入对战模式");
+                }
+                duel.synchronizeCore();
+            }
+            long step=Math.round(1e9/Bridge.fps());int rate=Bridge.rate();
             while(!dead){if(!ready()){drop(out);out=null;wantAudio=true;if(dirty){checkpoint();dirty=false;}awaitReady();tick=0;if(dead)break;continue;}
                 // UI only queues this request. All native and save operations stay on this thread.
                 if(reloadRequested.getAndSet(false)){
@@ -134,8 +149,9 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                 TouchInput.Snapshot input=touchInput.poll(cutoffMs,hardwareKeys);
                 int mask=input.keys|hardwareKeys;
                 touchMotion.traceFrame(frames,cutoffMs,mask);
-                int n=Bridge.frame(mask,rgb,pcm,wh);if(n<0){host.failed(this,"核心已停止。");break;}
-                if(++frames>=10)dirty=true;
+                int keys=duel==null?mask:duel.exchange(frames,mask);
+                int n=Bridge.frame(keys,rgb,pcm,wh);if(n<0){host.failed(this,"核心已停止。");break;}
+                if(++frames>=10&&duel==null)dirty=true;
                 if(wh[0]>0&&wh[0]<=640&&wh[1]>0&&wh[1]<=512){if(frame==null||frame.getWidth()!=wh[0]||frame.getHeight()!=wh[1])frame=Bitmap.createBitmap(wh[0],wh[1],Bitmap.Config.ARGB_8888);frame.setPixels(rgb,0,wh[0],0,0,wh[0],wh[1]);}
                 // Present the completed video before a blocking audio write can delay it.
                 paint(frame,mask,input.x,input.y);

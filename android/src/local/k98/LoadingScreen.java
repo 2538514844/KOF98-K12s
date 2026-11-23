@@ -65,6 +65,11 @@ final class LoadingScreen extends FrameLayout {
     }
     void busy(String message,boolean indeterminate){status.setText(message);status.setTextColor(MUTED);primary.setEnabled(false);modeButton.setEnabled(false);if(importButton!=null)importButton.setEnabled(false);progress.setIndeterminate(indeterminate);progress.setProgress(0);progress.setVisibility(VISIBLE);}
     void progress(int value){progress.setProgress(value);}
+    void addDuel(Runnable open){
+        Button duel=button("蓝牙对战",false);
+        duel.setOnClickListener(v->{if(primary.isEnabled())open.run();});
+        panel.addView(duel,panel.indexOfChild(primary)+1,new LinearLayout.LayoutParams(dp(194),dp(42)));
+    }
     void active(boolean value){backdrop.active(value);}
     void dispose(){backdrop.dispose();}
     private static final class Shade extends View {

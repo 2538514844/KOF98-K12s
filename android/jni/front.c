@@ -65,7 +65,11 @@ static void vid(const void *data,unsigned width,unsigned height,size_t pitch){if
 static size_t bat(const int16_t *s,size_t frames){size_t n=frames;if(n>PAIRS-used)n=PAIRS-used;if(s&&n){memcpy(samples+2*used,s,n*4);used+=(unsigned)n;}return frames;}
 static void snd(int16_t l,int16_t r){if(used<PAIRS){samples[2*used]=l;samples[2*used+1]=r;++used;}}
 static void poll(void){}
-static int16_t inp(unsigned port,unsigned dev,unsigned index,unsigned id){return !port&&((dev&RETRO_DEVICE_MASK)==RETRO_DEVICE_JOYPAD)&&!index&&id<16?((keys>>id)&1):0;}
+// Low and high halves hold the libretro joypad masks for ports 0 and 1.
+static int16_t inp(unsigned port,unsigned dev,unsigned index,unsigned id){
+ if(port>=2 || (dev&RETRO_DEVICE_MASK)!=RETRO_DEVICE_JOYPAD || index || id>=16)return 0;
+ return (keys>>(port*16+id))&1;
+}
 static void close_core(void){if(loaded){retro_unload_game();loaded=0;}if(init){retro_deinit();init=0;}}
 static int copy_path(JNIEnv *env,jstring value,char *dest,size_t capacity,const char *suffix){
  if(!value)return 0;

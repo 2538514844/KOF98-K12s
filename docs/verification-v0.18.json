@@ -1,0 +1,36 @@
+{
+  "version": "0.18-stick-fix",
+  "apkBytes": 107522047,
+  "apkSha256": "f83ad4463e47a12d9e763714e02c654b140e247c94414b891bd08ca0b2a476c3",
+  "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+  "signatures": [
+    "v2",
+    "v3"
+  ],
+  "zipAlignment": "16KiB",
+  "architecture": "arm64-v8a",
+  "permissions": [
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.BLUETOOTH",
+    "android.permission.BLUETOOTH_ADMIN",
+    "android.permission.BLUETOOTH_ADVERTISE",
+    "android.permission.BLUETOOTH_CONNECT",
+    "android.permission.BLUETOOTH_SCAN"
+  ],
+  "unchangedPayloadEntriesCompared": 348,
+  "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+  "deviceTested": false,
+  "baselineSha256": "e76598826557e2daccc6023a335ca02446537e6c65c85ee12ff6eb48d8b74d57",
+  "baselineVersion": "0.17",
+  "sameSigner": true,
+  "hostTests": {
+    "CenteringRegressionTest": "passed (288 cases)",
+    "DisplayFlowTest": "passed (12220 assertions)",
+    "GuideLayoutTest": "passed (13333 assertions)",
+    "TouchReplayTest": "passed (112 cases, 203596 assertions; includes 236236+attack)",
+    "FightPlaybackTest": "passed (9 cases, 67360 assertions)",
+    "DuelLinkTest": "passed (seat negotiation, input sync, 1500 frames, rematch)"
+  },
+  "androidWidgetTests": "not run; Gradle executable unavailable in the build environment",
+  "bluetoothHardwareTested": false
+}
