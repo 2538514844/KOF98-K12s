@@ -12,6 +12,8 @@ import java.io.*;
 
 public final class Main extends Activity {
     private static final int PICK=98;
+    final InputTrace inputTrace=new InputTrace();
+    private InputDebug inputDebug;
     private GameScreen game;
     private BluetoothRoom bluetooth;
     private boolean resumed,busy,pausedMenu;
@@ -25,6 +27,7 @@ public final class Main extends Activity {
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
+        inputDebug=new InputDebug(this,inputTrace);
         bluetooth=new BluetoothRoom(this);
         if(state!=null)selectedMode=NeoMode.fromName(state.getString("launchMode"));
         displayPrefs=getSharedPreferences("display",MODE_PRIVATE);
@@ -106,14 +109,14 @@ public final class Main extends Activity {
             if(game!=null)game.setDisplayOptions(next);
             setCutoutMode();
             stage.requestApplyInsets();
-        });
+        },()->{showInputDebug();if(settingsDialog!=null)settingsDialog.dismiss();});
         settingsDialog=dialog;
         dialog.setOnDismissListener(ignored->{
             settingsDialog=null;
             if(isFinishing() || isDestroyed())return;
             immersive();
-            if(game!=null && !pausedMenu)game.active(resumed);
-            if(loadingScreen!=null)loadingScreen.active(resumed);
+            if(game!=null && !pausedMenu)game.active(resumed&&!inputDebug.visible());
+            if(loadingScreen!=null)loadingScreen.active(resumed&&!inputDebug.visible());
         });
         dialog.show();
     }
@@ -136,7 +139,7 @@ public final class Main extends Activity {
     private void releaseLoading(){if(loadingScreen==null)return;loadingScreen.dispose();if(loadingScreen.getParent() instanceof ViewGroup)((ViewGroup)loadingScreen.getParent()).removeView(loadingScreen);loadingScreen=null;}
     private void pick(){if(busy)return;Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,PICK);}catch(ActivityNotFoundException ex){library("未找到系统文件选择器。");}}
     @Override public void onRequestPermissionsResult(int req,String[] names,int[] grants){super.onRequestPermissionsResult(req,names,grants);if(req==BluetoothRoom.PERMISSION)bluetooth.permissions(grants);}
-    @Override protected void onActivityResult(int req,int code,Intent intent){super.onActivityResult(req,code,intent);if(req==BluetoothRoom.ENABLE||req==BluetoothRoom.VISIBLE){bluetooth.result(req,code);return;}if(req!=PICK||code!=RESULT_OK||intent==null||intent.getData()==null||busy||loadingScreen==null)return;final Uri uri=intent.getData();busy=true;loadingScreen.busy("正在校验游戏数据…",false);
+    @Override protected void onActivityResult(int req,int code,Intent intent){super.onActivityResult(req,code,intent);if(req==InputDebug.EXPORT){inputDebug.result(code,intent);return;}if(req==BluetoothRoom.ENABLE||req==BluetoothRoom.VISIBLE){bluetooth.result(req,code);return;}if(req!=PICK||code!=RESULT_OK||intent==null||intent.getData()==null||busy||loadingScreen==null)return;final Uri uri=intent.getData();busy=true;loadingScreen.busy("正在校验游戏数据…",false);
         new Thread(()->{String failure=null;try(InputStream stream=getContentResolver().openInputStream(uri)){if(stream==null)throw new IOException("无法打开数据包。");DataDepot.install(getFilesDir(),stream,p->runOnUiThread(()->{if(!isDestroyed()&&busy&&loadingScreen!=null)loadingScreen.progress(p);}));}catch(Exception ex){failure=ex.getMessage();if(failure==null)failure=ex.getClass().getSimpleName();}final String msg=failure;runOnUiThread(()->{if(isFinishing()||isDestroyed())return;busy=false;if(msg==null)play();else library("导入失败："+msg);});},"k98-import").start();
     }
     private void play(){launch(null);}
@@ -155,28 +158,38 @@ public final class Main extends Activity {
         setCutoutMode();
         stage.addView(game,0,new FrameLayout.LayoutParams(-1,-1));
         stage.requestApplyInsets();
-        game.active(resumed && !pausedMenu && settingsDialog==null);
+        game.active(resumed && !pausedMenu && settingsDialog==null && !inputDebug.visible());
     }
     void started(GameScreen sender){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;releaseLoading();game.requestFocus();if(sender.duel!=null)note(sender.duel.localP1?"你是 1P · 左侧开局":"你是 2P · 右侧开局");});}
     void failed(GameScreen sender,String msg){runOnUiThread(()->{if(game!=sender||isDestroyed()||isFinishing())return;if(game.duel!=null){bluetooth.roundFailed(msg);return;}game.shutdown();game=null;pausedMenu=false;getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);library("游戏启动或运行失败："+msg);});}
     void note(String msg){runOnUiThread(()->{if(!isDestroyed()&&!isFinishing())Toast.makeText(this,msg,Toast.LENGTH_LONG).show();});}
+    GameScreen currentGame(){return game;}
+    void showInputDebug(){if(!busy&&!isFinishing()&&(game==null||loadingScreen==null))inputDebug.show();}
+    void inputDebugVisibilityChanged(){
+        if(game!=null&&game.duel==null)game.active(resumed&&!pausedMenu&&settingsDialog==null&&!inputDebug.visible());
+        if(loadingScreen!=null)loadingScreen.active(resumed&&settingsDialog==null&&!inputDebug.visible());
+    }
     void pauseMenu(){
         if(game!=null&&game.duel!=null){bluetooth.gameMenu();return;}
         if(game==null||pausedMenu||settingsDialog!=null||isFinishing())return;
         pausedMenu=true;game.active(false);
+        Button debug=new Button(this);debug.setText("输入调试");
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("游戏已暂停")
             .setMessage("重载游戏将重新开始，当前对战进度不保留。")
+            .setView(debug)
             .setPositiveButton("继续对战",(d,w)->{})
             .setNeutralButton("重载游戏",(d,w)->{if(game!=null)game.reload();})
             .setNegativeButton("退出游戏",(d,w)->finish()).create();
-        dialog.setOnDismissListener(d->{pausedMenu=false;if(!isFinishing()&&game!=null)game.active(resumed);immersive();});
+        debug.setOnClickListener(v->{showInputDebug();dialog.dismiss();});
+        dialog.setOnDismissListener(d->{pausedMenu=false;if(!isFinishing()&&game!=null)game.active(resumed&&!inputDebug.visible());immersive();});
         dialog.show();
     }
     @Override public void onBackPressed(){if(game!=null)pauseMenu();else super.onBackPressed();}
     @Override protected void onPause(){resumed=false;if(loadingScreen!=null)loadingScreen.active(false);if(game!=null)game.active(false);super.onPause();}
-    @Override protected void onResume(){super.onResume();resumed=true;immersive();if(loadingScreen!=null)loadingScreen.active(settingsDialog==null);if(game!=null&&!pausedMenu&&settingsDialog==null)game.active(true);}
+    @Override protected void onResume(){super.onResume();resumed=true;immersive();if(loadingScreen!=null)loadingScreen.active(settingsDialog==null&&!inputDebug.visible());if(game!=null&&!pausedMenu&&settingsDialog==null)game.active(game.duel!=null||!inputDebug.visible());}
     @Override protected void onDestroy(){
         bluetooth.close();
+        inputDebug.close();
         if(settingsDialog!=null){settingsDialog.setOnDismissListener(null);settingsDialog.dismiss();settingsDialog=null;}
         releaseLoading();if(game!=null)game.shutdown();super.onDestroy();
     }

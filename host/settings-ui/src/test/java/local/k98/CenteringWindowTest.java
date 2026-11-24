@@ -15,6 +15,66 @@ import org.robolectric.android.controller.ActivityController;
 @Config(sdk=28,manifest=Config.NONE,qualifiers="w800dp-h360dp-land-mdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public class CenteringWindowTest {
+    @Test public void maxButtonIsSmallerAndLightsWithABCThenReleases() throws Exception {
+        Controls p=new Controls(2400,1080,false,DisplayOptions.DEFAULT,120,0,0,48,162);
+        int id=ControlProfile.MAX_KEY;assertEquals(.68f,p.rx[id]/p.rx[1],.001f);
+        TouchInput input=new TouchInput();input.configure(p);TouchMotion motion=new TouchMotion(input);
+        Bitmap bitmap=Bitmap.createBitmap(p.width,p.height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);
+        try {
+            for(int state=0;state<3;state++){
+                if(state==1)send(motion,100,MotionEvent.ACTION_DOWN,p.cx[id],p.cy[id]);
+                if(state==2)send(motion,120,MotionEvent.ACTION_UP,p.cx[id],p.cy[id]);
+                int keys=input.poll().keys;assertEquals(state==1?PadLayout.MAX_KEYS:0,keys);
+                assertButtonColors(bitmap,canvas,p,keys,keys);
+                assertEquals(state==1?0xfff8d567:0xff35342d,
+                        bitmap.getPixel(Math.round(p.cx[id]),Math.round(p.cy[id]+p.rx[id]*.65f)));
+                File file=new File(System.getProperty("k98.evidence"),"max-"+state+".png");
+                try(FileOutputStream out=new FileOutputStream(file)){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}
+                canvas.drawColor(0xff151819);p.draw(canvas,keys,0,0,128);
+                assertNotEquals("MAX is inside the transparency layer",0xff151819,
+                        bitmap.getPixel(Math.round(p.cx[id]),Math.round(p.cy[id]+p.rx[id]*.65f)));
+            }
+        } finally { bitmap.recycle(); }
+    }
+
+    @Test public void offsetThumbChordsLightBothButtonsAndReleaseIndependently() throws Exception {
+        Controls p=new Controls(2400,1080,false,DisplayOptions.DEFAULT,120,0,0,48,162);
+        TouchInput input=new TouchInput();input.configure(p);TouchMotion motion=new TouchMotion(input);
+        Bitmap bitmap=Bitmap.createBitmap(p.width,p.height,Bitmap.Config.ARGB_8888);
+        Canvas canvas=new Canvas(bitmap);
+        try {
+            for(int first:new int[]{0,2})for(float along:new float[]{-.25f,0,.25f})for(float across:new float[]{-.4f,0,.4f}) {
+                input.reset();float vx=p.bx[first+1]-p.bx[first],vy=p.by[first+1]-p.by[first];
+                float length=(float)Math.hypot(vx,vy),ux=vx/length,uy=vy/length;
+                float x=(p.bx[first]+p.bx[first+1])*.5f+p.br*(along*ux-across*uy);
+                float y=(p.by[first]+p.by[first+1])*.5f+p.br*(along*uy+across*ux);
+                send(motion,100,MotionEvent.ACTION_DOWN,x,y);
+                int chord=PadLayout.BITS[first]|PadLayout.BITS[first+1];
+                int keys=input.poll(110).keys;assertEquals(chord,keys);
+                assertButtonColors(bitmap,canvas,p,keys,chord);
+                if(along==.25f&&across==.4f) {
+                    File file=new File(System.getProperty("k98.evidence"),"thumb-offset-"+(first==0?"AB":"CD")+".png");
+                    try(FileOutputStream out=new FileOutputStream(file)){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}
+                }
+                send(motion,115,MotionEvent.ACTION_MOVE,p.bx[first],p.by[first]);
+                keys=input.poll(127).keys;assertEquals(PadLayout.BITS[first],keys);
+                assertButtonColors(bitmap,canvas,p,keys,PadLayout.BITS[first]);
+                send(motion,130,MotionEvent.ACTION_UP,p.bx[first],p.by[first]);
+                keys=input.poll(144).keys;assertEquals(0,keys);assertButtonColors(bitmap,canvas,p,keys,0);
+            }
+        } finally { bitmap.recycle(); }
+    }
+    private static void send(TouchMotion motion,long time,int action,float x,float y) {
+        MotionEvent event=MotionEvent.obtain(100,time,action,x,y,0);
+        try{motion.accept(event);}finally{event.recycle();}
+    }
+    private static void assertButtonColors(Bitmap bitmap,Canvas canvas,Controls p,int keys,int expected) {
+        canvas.drawColor(0xff151819);p.draw(canvas,keys,0,0,255);
+        for(int i=0;i<4;i++)assertEquals("button fill "+Controls.LABEL[i],
+                (expected&PadLayout.BITS[i])==0?0xff242a2c:Controls.COLORS[i],
+                bitmap.getPixel(Math.round(p.bx[i]),Math.round(p.by[i]+p.rx[i+1]*.65f)));
+    }
+
     @Test public void launcherAndDisplayModesShareCutoutCoordinates() throws Exception {
         ActivityController<Main> controller=Robolectric.buildActivity(Main.class);
         Main activity=controller.get();

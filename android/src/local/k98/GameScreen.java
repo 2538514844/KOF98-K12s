@@ -21,7 +21,10 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     private final AtomicInteger taps=new AtomicInteger();private volatile int physical,stick;
     private final AtomicBoolean reloadRequested=new AtomicBoolean();
     private final TouchInput touchInput=new TouchInput();
-    private final TouchMotion touchMotion=new TouchMotion(touchInput);
+    private final TouchMotion touchMotion;
+    private final InputTrace inputTrace;
+    private final Paint debugPaint=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private volatile double emulationFps;
     private volatile boolean foreground,surface,dead; private volatile Controls layout;
     private final Paint videoPaint=new Paint(); private final Paint loading=new Paint(Paint.ANTI_ALIAS_FLAG);
     GameScreen(Main main,File folder,NeoMode mode,DisplayOptions options){
@@ -29,16 +32,29 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     }
     GameScreen(Main main,File folder,NeoMode mode,DisplayOptions options,DuelRound duel){
         super(main);host=main;root=folder;this.mode=mode;displayOptions=options;this.duel=duel;
+        inputTrace=main.inputTrace;touchMotion=new TouchMotion(touchInput,inputTrace);
+        debugPaint.setColor(0xffffd663);debugPaint.setTextSize(getResources().getDisplayMetrics().density*12);
+        debugPaint.setShadowLayer(3,1,1,0xff000000);
         save=new AtomicFile(mode.resumeFile(root));
         setFocusableInTouchMode(true);setFocusable(true);getHolder().addCallback(this);
         videoPaint.setFilterBitmap(false);loading.setColor(0xffdedbcf);loading.setTextAlign(Paint.Align.CENTER);
         new Thread(this,"K98-emulation").start();
     }
     private void wake(){synchronized(signal){signal.notifyAll();}}
-    void active(boolean yes){if(!yes)releaseInput();foreground=yes;wake();}
-    void shutdown(){dead=true;releaseInput();wake();}
-    void reload(){if(dead)return;releaseInput();reloadRequested.set(true);wake();}
-    private void releaseInput(){touchInput.reset();physical=stick=0;taps.set(0);}
+    void active(boolean yes){if(foreground!=yes)inputTrace.marker(yes?"resume":"pause",SystemClock.uptimeMillis());if(!yes)releaseInput();foreground=yes;wake();}
+    void shutdown(){inputTrace.marker("shutdown",SystemClock.uptimeMillis());dead=true;releaseInput();inputTrace.stop("game_end",SystemClock.uptimeMillis());wake();}
+    void reload(){if(dead)return;inputTrace.marker("reload_requested",SystemClock.uptimeMillis());releaseInput();reloadRequested.set(true);wake();}
+    private void releaseInput(){synchronized(touchInput){touchInput.reset();physical=stick=0;taps.set(0);inputTrace.marker("input_reset",SystemClock.uptimeMillis());}}
+    void startInputTrace(String metadata){
+        synchronized(touchInput){
+            long now=SystemClock.uptimeMillis();
+            inputTrace.start(now,System.currentTimeMillis(),metadata+",\"mode\":"+InputTrace.quote(mode.name())
+                    +",\"bluetooth\":"+(duel!=null)+",\"localPort\":"+(duel==null||duel.localP1?1:2)
+                    +",\"bluetoothDelayFrames\":"+(duel==null?0:DuelRound.DELAY)
+                    +",\"fps\":"+emulationFps+",\"inputConfig\":"+TouchInput.debugConfig());
+            inputTrace.layout(layout,now);
+        }
+    }
     private boolean ready(){return !dead&&surface&&foreground;}
     private void awaitReady() throws InterruptedException {synchronized(signal){while(!dead&&!ready())signal.wait();}}
     @Override public void surfaceCreated(SurfaceHolder h){synchronized(drawing){surface=true;}wake();}
@@ -53,8 +69,10 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
         if(w<=0 || h<=0)return;
         int gear=Math.round(getResources().getDisplayMetrics().density*54f);
         Controls next=new Controls(w,h,mode.arcade,displayOptions,insetLeft,insetTop,insetRight,insetBottom,gear);
-        touchInput.configure(next);
-        layout=next;
+        synchronized(touchInput){
+            touchInput.configure(next);layout=next;
+            inputTrace.marker("layout_input_reset",SystemClock.uptimeMillis());inputTrace.layout(next,SystemClock.uptimeMillis());
+        }
     }
     void setDisplayOptions(DisplayOptions next){
         boolean geometryChanged=next.fullscreen!=displayOptions.fullscreen || next.keepAspect!=displayOptions.keepAspect || next.profile!=displayOptions.profile;
@@ -68,7 +86,8 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
     }
     private void latch(int bits){if(bits==0)return;int old;do{old=taps.get();}while(!taps.compareAndSet(old,old|bits));}
     @Override public boolean onTouchEvent(MotionEvent ev){Controls l=layout;int act=ev.getActionMasked();if(l==null)return true;
-        if(!ready()||act==MotionEvent.ACTION_CANCEL){touchInput.reset();return true;}
+        if(act==MotionEvent.ACTION_CANCEL){touchMotion.accept(ev);return true;}
+        if(!ready()){releaseInput();return true;}
         if(act==MotionEvent.ACTION_DOWN){requestUnbufferedDispatch(ev);if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);}
         int changed=ev.getActionIndex();
         if(act==MotionEvent.ACTION_DOWN||act==MotionEvent.ACTION_POINTER_DOWN){if(l.pause.contains(ev.getX(changed),ev.getY(changed))){releaseInput();host.pauseMenu();return true;}}
@@ -93,6 +112,11 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                     c.drawText("正在启动…",c.getWidth()*.5f,c.getHeight()*.5f,loading);
                 }
                 controls.draw(c,mask,thumbX,thumbY,displayOptions.controlAlpha());
+                if(inputTrace.hasData()){
+                    String status=inputTrace.recording()?"记录中 "+inputTrace.elapsed(SystemClock.uptimeMillis())/1000+" 秒":"已停止";
+                    c.drawText("输入调试 · "+status,Math.max(controls.videoLeft+12,controls.safeX+12),
+                            controls.safeY+debugPaint.getTextSize()*1.5f,debugPaint);
+                }
             }finally{
                 try{getHolder().unlockCanvasAndPost(c);}catch(RuntimeException ignored){}
             }
@@ -120,7 +144,7 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                 }
                 duel.synchronizeCore();
             }
-            long step=Math.round(1e9/Bridge.fps());int rate=Bridge.rate();
+            emulationFps=Bridge.fps();long step=Math.round(1e9/emulationFps);int rate=Bridge.rate();
             while(!dead){if(!ready()){drop(out);out=null;wantAudio=true;if(dirty){checkpoint();dirty=false;}awaitReady();tick=0;if(dead)break;continue;}
                 // UI only queues this request. All native and save operations stay on this thread.
                 if(reloadRequested.getAndSet(false)){
@@ -134,7 +158,7 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                     open=true;
                     // Only invalidate the auto-resume after a successful reload; do not restore it.
                     save.delete();dirty=true;frames=0;frame=null;tick=0;
-                    step=Math.round(1e9/Bridge.fps());rate=Bridge.rate();audioNotified=false;
+                    emulationFps=Bridge.fps();step=Math.round(1e9/emulationFps);rate=Bridge.rate();audioNotified=false;
                     continue;
                 }
                 if(wantAudio){out=audio(rate);wantAudio=false;if(out==null&&!audioNotified){audioNotified=true;host.note("暂时无法打开声音输出。");}}
@@ -146,10 +170,16 @@ final class GameScreen extends SurfaceView implements SurfaceHolder.Callback,Run
                 // A frame running on time takes the current input as late as possible.
                 if(lag>=step)cutoffMs-=lag/1_000_000L;
                 int hardwareKeys=physical|stick|taps.getAndSet(0);
-                TouchInput.Snapshot input=touchInput.poll(cutoffMs,hardwareKeys);
+                TouchInput.Snapshot input;long pollId=0;
+                synchronized(touchInput){
+                    input=touchInput.poll(cutoffMs,hardwareKeys);
+                    if(inputTrace.recording())pollId=inputTrace.poll(frames,cutoffMs,SystemClock.uptimeMillis(),
+                            input.keys,hardwareKeys,touchInput.debugState());
+                }
                 int mask=input.keys|hardwareKeys;
                 touchMotion.traceFrame(frames,cutoffMs,mask);
                 int keys=duel==null?mask:duel.exchange(frames,mask);
+                if(pollId!=0)inputTrace.core(frames,pollId,SystemClock.uptimeMillis(),keys);
                 int n=Bridge.frame(keys,rgb,pcm,wh);if(n<0){host.failed(this,"核心已停止。");break;}
                 if(++frames>=10&&duel==null)dirty=true;
                 if(wh[0]>0&&wh[0]<=640&&wh[1]>0&&wh[1]<=512){if(frame==null||frame.getWidth()!=wh[0]||frame.getHeight()!=wh[1])frame=Bitmap.createBitmap(wh[0],wh[1],Bitmap.Config.ARGB_8888);frame.setPixels(rgb,0,wh[0],0,0,wh[0],wh[1]);}

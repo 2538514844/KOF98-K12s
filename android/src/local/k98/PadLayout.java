@@ -5,6 +5,7 @@ class PadLayout {
     static final int A=1, B=1<<8, C=1<<1, D=1<<9, START=1<<3, COIN=1<<2;
     static final int UP=1<<4, DOWN=1<<5, LEFT=1<<6, RIGHT=1<<7;
     static final int DIRECTIONS=UP|DOWN|LEFT|RIGHT;
+    static final int MAX_KEYS=A|B|C;
     static final int[] BITS={A,B,C,D};
     final int width,height;
     final float videoLeft,videoTop,videoRight,videoBottom;
@@ -16,6 +17,7 @@ class PadLayout {
     final int safeX,safeY,safeWidth,safeHeight;
     final float gearLeft,gearBottom;
     static final int STICK_STROKE=2;
+    private static final float KEY_HIT_SQUARED=1.39f, CHORD_HIT_SQUARED=2.25f, SINGLE_INNER_SQUARED=.5625f;
     static int keyStroke(float radius){return Math.max(2,(int)(radius*.07f));}
 
     PadLayout(int w,int h) {
@@ -73,6 +75,8 @@ class PadLayout {
         slot(ControlProfile.PAUSE,menuLeftX,menuY,hw,hh,options.profile);
         slot(ControlProfile.START,menuRightX,menuY,hw,hh,options.profile);
         slot(ControlProfile.COIN,menuLeftX,insetTop+safeH*.377f,hw,safeH*.055f,options.profile);
+        slot(ControlProfile.MAX_KEY,rightX,insetTop+safeH*.40f,br*.68f,br*.68f,options.profile);
+        if(!options.profile.positioned(ControlProfile.MAX_KEY))placeDefaultMax();
         int s=ControlProfile.START,k=ControlProfile.COIN;
         half=rx[s];startX=cx[s];menuTop=cy[s]-ry[s];menuBottom=cy[s]+ry[s];coinTop=cy[k]-ry[k];coinBottom=cy[k]+ry[k];
     }
@@ -89,9 +93,36 @@ class PadLayout {
         cx[id]=x;cy[id]=y;
     }
     boolean visible(int id){return id!=ControlProfile.COIN||arcade;}
+    private void placeDefaultMax(){
+        int id=ControlProfile.MAX_KEY;float wantedX=cx[id],wantedY=cy[id],r=rx[id];
+        if(maxFits(wantedX,wantedY))return;
+        float best=Float.MAX_VALUE;
+        // An upgraded custom layout may already occupy the new default location.
+        // Find nearby free space without moving any of the user's existing controls.
+        for(int row=0;row<=24;row++)for(int col=0;col<=32;col++){
+            float x=safeX+r+(safeWidth-2*r)*col/32f,y=safeY+r+(safeHeight-2*r)*row/24f;
+            float distance=(x-wantedX)*(x-wantedX)+(y-wantedY)*(y-wantedY);
+            if(distance<best&&maxFits(x,y)){best=distance;cx[id]=x;cy[id]=y;}
+        }
+    }
+    private boolean maxFits(float x,float y){
+        float r=rx[ControlProfile.MAX_KEY]+br*.12f;
+        if(x+r>gearLeft&&y-r<gearBottom)return false;
+        for(int id=0;id<ControlProfile.MAX_KEY;id++)if(visible(id)){
+            float vx=Math.abs(x-cx[id]),vy=Math.abs(y-cy[id]);
+            if(id<ControlProfile.PAUSE){
+                float reach=r+rx[id]*(id==ControlProfile.STICK?1.23f:1.5f);
+                if(vx*vx+vy*vy<reach*reach)return false;
+            }else{
+                vx=Math.max(0,vx-rx[id]);vy=Math.max(0,vy-ry[id]);
+                if(vx*vx+vy*vy<r*r)return false;
+            }
+        }
+        return true;
+    }
     boolean containsSlot(int id,float x,float y){
         float u=Math.abs(x-cx[id])/rx[id],v=Math.abs(y-cy[id])/ry[id];
-        return visible(id)&&(id<ControlProfile.PAUSE?u*u+v*v<=1:u<=1&&v<=1);
+        return visible(id)&&((id<ControlProfile.PAUSE||id==ControlProfile.MAX_KEY)?u*u+v*v<=1:u<=1&&v<=1);
     }
     int pickSlot(float x,float y){
         int pick=-1;float best=Float.MAX_VALUE;
@@ -117,12 +148,21 @@ class PadLayout {
     boolean insertsCoin(float x,float y) {
         return containsSlot(ControlProfile.COIN,x,y);
     }
+    boolean pressesMax(float x,float y) {
+        return containsSlot(ControlProfile.MAX_KEY,x,y);
+    }
     int fireAt(float x,float y) {
-        int pick=-1;float best=1.39f;
+        int chord=0,pick=-1;float best=Float.MAX_VALUE;
         for(int i=0;i<4;i++) {
             float vx=x-bx[i],vy=y-by[i],r=rx[ControlProfile.FIRST_KEY+i],dist=(vx*vx+vy*vy)/(r*r);
+            if(dist<CHORD_HIT_SQUARED)chord|=BITS[i];
             if(dist<best){best=dist;pick=i;}
         }
-        return pick<0?0:BITS[pick];
+        // The former shared rim was only 2-5 px wide in the default layouts.
+        // Broaden chords without enlarging the outside edge of a lone button.
+        // The inner 75% radius remains single-key, including unequal custom sizes.
+        if(best<=SINGLE_INNER_SQUARED)return BITS[pick];
+        if(Integer.bitCount(chord)>=2)return chord;
+        return best<KEY_HIT_SQUARED?BITS[pick]:0;
     }
 }

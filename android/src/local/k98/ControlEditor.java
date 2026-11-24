@@ -79,7 +79,7 @@ final class ControlEditor {
             pad.draw(c,0,0,0,255);
             paint.setColor(pad.obstructed(selected)?0xffff7569:0xffffdf79);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(getContext(),2)/zoom);
             float g=3/zoom,x=pad.cx[selected],y=pad.cy[selected],a=pad.rx[selected]+g,b=pad.ry[selected]+g;
-            if(selected<ControlProfile.PAUSE)c.drawOval(x-a,y-b,x+a,y+b,paint);else c.drawRoundRect(x-a,y-b,x+a,y+b,b*.3f,b*.3f,paint);
+            if(selected<ControlProfile.PAUSE||selected==ControlProfile.MAX_KEY)c.drawOval(x-a,y-b,x+a,y+b,paint);else c.drawRoundRect(x-a,y-b,x+a,y+b,b*.3f,b*.3f,paint);
             c.restoreToCount(save);
         }
         @Override public boolean performClick(){super.performClick();return true;}

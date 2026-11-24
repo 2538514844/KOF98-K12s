@@ -185,7 +185,10 @@ final class BluetoothRoom {
     }
     void gameMenu(){
         DuelLink l=link;if(l==null)return;
+        android.widget.Button debug=new android.widget.Button(main);debug.setText("输入调试");
+        debug.setOnClickListener(v->{main.showInputDebug();dismiss();});
         dismiss();dialog=new AlertDialog.Builder(main).setTitle(l.round!=null&&l.round.localP1?"你是 1P":"你是 2P")
+            .setView(debug)
             .setPositiveButton("继续",(d,i)->{}).setNeutralButton("双方返回房间",(d,i)->l.returnToRoom())
             .setNegativeButton("离开房间",(d,i)->{close();main.stopDuel();}).show();
     }

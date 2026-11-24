@@ -1,0 +1,73 @@
+{
+  "apk": {
+    "version": "0.25-thumb-chords",
+    "apkBytes": 107538431,
+    "apkSha256": "5a026c9bd06775e777bf71836bae91812866c240ad5dd363d97cf1cc4cd3ed60",
+    "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+    "signatures": [
+      "v2",
+      "v3"
+    ],
+    "zipAlignment": "16KiB",
+    "architecture": "arm64-v8a",
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.BLUETOOTH",
+      "android.permission.BLUETOOTH_ADMIN",
+      "android.permission.BLUETOOTH_ADVERTISE",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.BLUETOOTH_SCAN"
+    ],
+    "unchangedPayloadEntriesCompared": 348,
+    "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+    "deviceTested": false,
+    "baselineSha256": "9c2595053875347fb699aaa461fbdd96d461a6f4bb61e641a31952118c6fa501",
+    "sameSigner": true
+  },
+  "androidRobolectric": {
+    "tests": 34,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "hostTests": {
+    "CenteringRegressionTest": 0,
+    "DisplayFlowTest": 0,
+    "GuideLayoutTest": 0,
+    "TouchReplayTest": 0,
+    "FightPlaybackTest": 0
+  },
+  "touchReplaySummary": "RESULT cases=164 assertions=211836 failures=0",
+  "offsetTouchPositions": 2992,
+  "desktopCoreOffsetReplays": {
+    "before": [
+      {
+        "firstKeyIndex": 0,
+        "cases": 9,
+        "failed": 8
+      },
+      {
+        "firstKeyIndex": 2,
+        "cases": 9,
+        "failed": 8
+      }
+    ],
+    "after": [
+      {
+        "firstKeyIndex": 0,
+        "cases": 9,
+        "failed": 0
+      },
+      {
+        "firstKeyIndex": 2,
+        "cases": 9,
+        "failed": 0
+      }
+    ]
+  },
+  "previousWushiRecording": {
+    "frames": 3467,
+    "sameAsV023": true
+  },
+  "phoneRetested": false
+}

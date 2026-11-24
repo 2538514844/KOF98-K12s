@@ -24,6 +24,13 @@ public final class DisplayFlowTest {
         check(pad.insertsCoin(pad.cx[ControlProfile.COIN], (pad.coinTop + pad.coinBottom) / 2) == pad.arcade, "coin");
         check(pad.startsGame(pad.startX,(pad.menuTop + pad.menuBottom) / 2), "start");
         for (int i=0; i<4; i++) check(pad.fireAt(pad.bx[i],pad.by[i]) == PadLayout.BITS[i], "action key");
+        int max=ControlProfile.MAX_KEY;
+        near(pad.rx[max]/pad.br,.68f,"MAX default size");check(!pad.obstructed(max),"MAX accessible");
+        check(pad.fireAt(pad.cx[max],pad.cy[max])==0,"MAX separated from ordinary attack zones");
+        touch.event(TouchInput.DOWN_EVENT,3,1,new int[]{3},new float[]{pad.cx[max]},new float[]{pad.cy[max]});
+        check(touch.poll().keys==PadLayout.MAX_KEYS,"MAX sends ABC");
+        touch.event(TouchInput.UP_EVENT,3,1,new int[]{3},new float[]{pad.cx[max]},new float[]{pad.cy[max]});
+        check(touch.poll().keys==0,"MAX releases all three");
     }
     private static void screen(int w, int h, int left, int top, int right, int bottom) {
         for(boolean arcade : new boolean[]{false,true}) {

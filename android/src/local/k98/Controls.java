@@ -21,6 +21,7 @@ final class Controls extends PadLayout {
         if(arcade)leftBounds.union(coin);
         rightBounds=new RectF(start);
         for(int i=0;i<4;i++)rightBounds.union(rect(i+1));
+        rightBounds.union(rect(ControlProfile.MAX_KEY));
         leftBounds.inset(-margin,-margin);
         rightBounds.inset(-margin,-margin);
         p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create(Typeface.SANS_SERIF,Typeface.BOLD));
@@ -63,6 +64,11 @@ final class Controls extends PadLayout {
     private void drawRight(Canvas c,int keys){drawRight(c,keys,true);}
     private void drawRight(Canvas c,int keys,boolean menu){
         for(int i=0;i<4;i++){float r=rx[i+1];boolean held=(keys&BITS[i])!=0;fill(held?COLORS[i]:0xff242a2c);c.drawCircle(bx[i],by[i],r,p);ring(c,bx[i],by[i],r,keyStroke(r),COLORS[i]);text(c,LABEL[i],bx[i],by[i],r*.96f,held?INK:COLORS[i]);}
+        if(menu){
+            int id=ControlProfile.MAX_KEY;float x=cx[id],y=cy[id],r=rx[id];boolean held=(keys&MAX_KEYS)==MAX_KEYS;
+            fill(held?0xfff8d567:0xff35342d);c.drawCircle(x,y,r,p);ring(c,x,y,r,keyStroke(r),0xfff5d476);
+            text(c,"MAX",x,y,r*.60f,held?INK:0xfff5d476);
+        }
         if(menu){fill((keys&START)!=0?0xfff8d567:0xff35342d);c.drawRoundRect(start,start.height()*.18f,start.height()*.18f,p);text(c,"START",start.centerX(),start.centerY(),start.height()*.4f,(keys&START)!=0?INK:0xfff5d476);}
     }
 }

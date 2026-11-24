@@ -1,0 +1,76 @@
+{
+  "apk": {
+    "version": "0.24-button-chords",
+    "apkBytes": 107538431,
+    "apkSha256": "9c2595053875347fb699aaa461fbdd96d461a6f4bb61e641a31952118c6fa501",
+    "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+    "signatures": [
+      "v2",
+      "v3"
+    ],
+    "zipAlignment": "16KiB",
+    "architecture": "arm64-v8a",
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.BLUETOOTH",
+      "android.permission.BLUETOOTH_ADMIN",
+      "android.permission.BLUETOOTH_ADVERTISE",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.BLUETOOTH_SCAN"
+    ],
+    "unchangedPayloadEntriesCompared": 348,
+    "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+    "deviceTested": false,
+    "baselineSha256": "e95027b49a235ad6b72ed0e315d2cfe1b2513fb6395837dbd9e7dc732c6035d1",
+    "sameSigner": true
+  },
+  "androidRobolectric": {
+    "tests": 33,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "hostTests": {
+    "CenteringRegressionTest": 0,
+    "DisplayFlowTest": 0,
+    "GuideLayoutTest": 0,
+    "TouchReplayTest": 0,
+    "FightPlaybackTest": 0
+  },
+  "touchReplaySummary": "RESULT cases=156 assertions=205272 failures=0",
+  "desktopCoreRimReplays": {
+    "before": [
+      {
+        "firstKeyIndex": 0,
+        "expectedMask": 257,
+        "actualMask": 1,
+        "matchingFrames": 0
+      },
+      {
+        "firstKeyIndex": 2,
+        "expectedMask": 514,
+        "actualMask": 2,
+        "matchingFrames": 0
+      }
+    ],
+    "after": [
+      {
+        "firstKeyIndex": 0,
+        "expectedMask": 257,
+        "actualMask": 257,
+        "matchingFrames": 56
+      },
+      {
+        "firstKeyIndex": 2,
+        "expectedMask": 514,
+        "actualMask": 514,
+        "matchingFrames": 56
+      }
+    ]
+  },
+  "previousWushiRecording": {
+    "frames": 3467,
+    "sameAsV023": true
+  },
+  "phoneRetested": false
+}

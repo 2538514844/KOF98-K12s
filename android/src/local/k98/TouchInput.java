@@ -7,15 +7,16 @@ import static local.k98.PadLayout.*;
 final class TouchInput {
     static final int DOWN_EVENT=0, UP_EVENT=1, MOVE_EVENT=2, CANCEL_EVENT=3;
     static final int POINTER_DOWN=5, POINTER_UP=6;
-    private static final int IGNORE=1, STICK=2, FIRE=3, GAME_START=4, INSERT_COIN=5;
+    private static final int IGNORE=1, STICK=2, FIRE=3, GAME_START=4, INSERT_COIN=5, MAX_FIRE=6;
     private static final int[] SECTORS={RIGHT,RIGHT|DOWN,DOWN,DOWN|LEFT,LEFT,LEFT|UP,UP,UP|RIGHT};
-    private static final double STEP=Math.PI/4, HOLD_ANGLE=Math.PI/8+Math.toRadians(3);
-    private static final double ENGAGE_RADIUS=.16, RELEASE_RADIUS=.11;
-    private static final double REVERSAL_RADIUS=.32, REVERSAL_X=.26;
+    private static final double STEP=Math.PI/4, HOLD_ANGLE=Math.PI/8+Math.toRadians(1);
+    private static final double ENGAGE_RADIUS=.10, RELEASE_RADIUS=.05;
+    // The core must sample each diagonal twice, even after a long-held cardinal direction.
+    // Time spent on the previous direction does not tell us how briefly the diagonal will last.
+    private static final int MIN_DIAGONAL_SAMPLES=2;
     private final int[] roles=new int[32],buttonsById=new int[32];
     private PadLayout layout;
     private int owner=-1,sector=-1,direction,buttons;
-    private int lastHorizontal;
     private float thumbX,thumbY;
     // Keep turn order so one port read cannot skip a fast sweep; cap catch-up at 16 turns.
     private final long[] turnTimes=new long[16];
@@ -43,7 +44,7 @@ final class TouchInput {
     }
     private void releaseStick() {
         owner=sector=-1;
-        direction=lastHorizontal=0;
+        direction=0;
         thumbX=thumbY=0;
     }
     Snapshot poll() {return poll(Long.MAX_VALUE);}
@@ -90,6 +91,25 @@ final class TouchInput {
     }
     synchronized int held(){return direction|buttons;}
 
+    // Observation only: never poll, drain, or change input when collecting diagnostics.
+    synchronized String debugState(){
+        StringBuilder s=new StringBuilder("{\"owner\":").append(owner).append(",\"sector\":").append(sector)
+                .append(",\"heldMask\":").append(direction|buttons).append(",\"x\":").append(thumbX)
+                .append(",\"y\":").append(thumbY).append(",\"sampledDirection\":").append(sampledDirection)
+                .append(",\"pressMask\":").append(press==null?0:press.keys).append(",\"turnAttack\":").append(turnAttack)
+                .append(",\"queueDepth\":").append(turnCount).append(",\"queue\":[");
+        for(int i=0;i<turnCount;i++){
+            int slot=(firstTurn+i)%turns.length;if(i>0)s.append(',');
+            s.append("{\"mask\":").append(turns[slot]|turnButtons[slot]).append(",\"timeMs\":").append(turnTimes[slot]).append('}');
+        }
+        return s.append("]}").toString();
+    }
+    static String debugConfig(){
+        return "{\"engageRadius\":"+ENGAGE_RADIUS+",\"releaseRadius\":"+RELEASE_RADIUS
+                +",\"holdAngleDegrees\":"+Math.toDegrees(HOLD_ANGLE)+",\"minDiagonalSamples\":"+MIN_DIAGONAL_SAMPLES
+                +",\"queueCapacity\":16}";
+    }
+
     void event(int action,int changedId,int count,int[] ids,float[] xs,float[] ys) {
         event(action,changedId,count,ids,xs,ys,System.nanoTime()/1_000_000L);
     }
@@ -97,6 +117,7 @@ final class TouchInput {
         if(action==CANCEL_EVENT){reset();return;}
         if(layout==null)return;
         int previousDirection=direction;
+        int previousSector=action==DOWN_EVENT?-1:sector;
         if(action==DOWN_EVENT)clearContacts();
         boolean adding=action==DOWN_EVENT||action==POINTER_DOWN;
         boolean removing=action==UP_EVENT||action==POINTER_UP;
@@ -112,7 +133,11 @@ final class TouchInput {
         boolean directionChanged=direction!=previousDirection;
         boolean buttonsChanged=next!=buttons;
         boolean buttonPressed=(next&~buttons)!=0;
-        if(directionChanged)enqueueTurn(direction,next,timeMs);
+        if(directionChanged) {
+            int skipped=skippedDiagonal(previousSector,sector,previousDirection,direction);
+            if(skipped>=0)enqueueTurn(SECTORS[skipped],buttons,timeMs);
+            enqueueTurn(direction,next,timeMs);
+        }
         if(buttonsChanged&&!directionChanged&&buttonPressed) {
             if(turnCount>0) {
                 if(!attachToLastTurn(direction,next))enqueueTurn(direction,next,timeMs);
@@ -124,6 +149,13 @@ final class TouchInput {
         buttons=next;
     }
     private void enqueueTurn(int nextDirection,int nextButtons,long timeMs) {
+        int samples=isDiagonal(nextDirection)?MIN_DIAGONAL_SAMPLES:1;
+        for(int i=0;i<samples;i++)enqueueOneTurn(nextDirection,nextButtons,timeMs);
+    }
+    private static boolean isDiagonal(int value) {
+        return (value&(LEFT|RIGHT))!=0&&(value&(UP|DOWN))!=0;
+    }
+    private void enqueueOneTurn(int nextDirection,int nextButtons,long timeMs) {
         if(turnCount==turns.length) {
             firstTurn=(firstTurn+1)%turns.length;
             turnCount--;
@@ -133,6 +165,14 @@ final class TouchInput {
         turns[slot]=nextDirection;
         turnButtons[slot]=nextButtons;
         turnCount++;
+    }
+    // Preserve the diagonal crossing when one touch sample jumps between cardinal sectors.
+    private static int skippedDiagonal(int from,int to,int oldDirection,int newDirection) {
+        if(from<0||to<0||oldDirection!=SECTORS[from]||newDirection!=SECTORS[to])return -1;
+        int delta=(to-from+8)&7;
+        if(delta==2)return (from+1)&7;
+        if(delta==6)return (from+7)&7;
+        return -1;
     }
     private boolean attachToLastTurn(int nextDirection,int nextButtons) {
         if(turnCount==0)return false;
@@ -148,6 +188,7 @@ final class TouchInput {
             else roles[id]=IGNORE;
         }else if(layout.insertsCoin(x,y))roles[id]=INSERT_COIN;
         else if(layout.startsGame(x,y))roles[id]=GAME_START;
+        else if(layout.pressesMax(x,y))roles[id]=MAX_FIRE;
         else if(layout.fireAt(x,y)!=0)roles[id]=FIRE;
         else roles[id]=IGNORE;
     }
@@ -160,6 +201,7 @@ final class TouchInput {
         else if(roles[id]==FIRE)buttonsById[id]=layout.fireAt(x,y);
         else if(roles[id]==GAME_START)buttonsById[id]=layout.startsGame(x,y)?START:0;
         else if(roles[id]==INSERT_COIN)buttonsById[id]=layout.insertsCoin(x,y)?COIN:0;
+        else if(roles[id]==MAX_FIRE)buttonsById[id]=layout.pressesMax(x,y)?MAX_KEYS:0;
     }
     private void stick(float x,float y) {
         float vx=(x-layout.dx)/layout.dr,vy=(y-layout.dy)/layout.dr;
@@ -173,15 +215,6 @@ final class TouchInput {
             if(Math.abs(delta)>HOLD_ANGLE)sector=((int)Math.round(angle/STEP))&7;
         }else sector=((int)Math.round(angle/STEP))&7;
         direction=SECTORS[sector];
-        int horizontal=direction&(LEFT|RIGHT);
-        if(horizontal!=0) {
-            // Keep the last accepted side across neutral, so crossing center can lead straight into down.
-            if(lastHorizontal!=0 && horizontal!=lastHorizontal && length<REVERSAL_RADIUS && Math.abs(vx)<REVERSAL_X) {
-                direction=Math.abs(vy)>=ENGAGE_RADIUS ? direction&(UP|DOWN) : 0;
-            }else{
-                lastHorizontal=horizontal;
-            }
-        }
         double clamp=Math.max(1,length);thumbX=(float)(vx/clamp);thumbY=(float)(vy/clamp);
     }
 }

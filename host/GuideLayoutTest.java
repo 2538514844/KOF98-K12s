@@ -26,24 +26,31 @@ public final class GuideLayoutTest {
     static PadLayout pad(int w,int h,int[] t,boolean arcade,boolean full,ControlProfile p){return new PadLayout(w,h,arcade,new DisplayOptions(full,true,50,p),t[0],t[1],t[2],t[3],Math.round(h*.145f));}
     static void touch(PadLayout p){
         TouchInput t=new TouchInput();t.configure(p);int[] ids={6,2,9};float[] xs={p.dx+p.dr*.72f,p.bx[0],p.bx[2]},ys={p.dy+p.dr*.72f,p.by[0],p.by[2]};
-        t.event(0,6,1,ids,xs,ys);t.event(5,2,2,ids,xs,ys);t.event(5,9,3,ids,xs,ys);ok(t.poll().keys==(PadLayout.RIGHT|PadLayout.DOWN|PadLayout.A|PadLayout.C),"custom diagonal and two attack fingers");
+        t.event(0,6,1,ids,xs,ys);t.event(5,2,2,ids,xs,ys);t.event(5,9,3,ids,xs,ys);
+        ok(t.poll().keys==(PadLayout.RIGHT|PadLayout.DOWN),"custom diagonal first sample precedes later attack fingers");
+        ok(t.poll().keys==(PadLayout.RIGHT|PadLayout.DOWN|PadLayout.A|PadLayout.C),"custom diagonal and two attack fingers");
         t.configure(p);ok(t.poll().keys==0,"no stale state after settings");
-        for(int n=1;n<8;n++){
-            int id=n;int[] key={0,PadLayout.A,PadLayout.B,PadLayout.C,PadLayout.D,0,PadLayout.START,PadLayout.COIN};
+        for(int n=1;n<ControlProfile.COUNT;n++){
+            int id=n;int[] key={0,PadLayout.A,PadLayout.B,PadLayout.C,PadLayout.D,0,PadLayout.START,PadLayout.COIN,PadLayout.MAX_KEYS};
             if(n==ControlProfile.PAUSE||!p.visible(id))continue;
             float[] x={p.cx[id]},y={p.cy[id]};t.event(0,6,1,ids,x,y);ok(t.poll().keys==key[id],"touch slot "+id);t.event(1,6,1,ids,x,y);ok(t.poll().keys==0,"release slot "+id);
         }
         ok(p.containsSlot(ControlProfile.PAUSE,p.cx[5],p.cy[5]),"pause center");
     }
     static void layouts(){ControlProfile d=ControlProfile.DEFAULT;
-        ControlProfile cfg=d.move(0,.21f,.61f).scale(0,82).move(1,.66f,.73f).scale(1,135).move(2,.82f,.73f).scale(2,72).move(3,.66f,.45f).scale(3,148).move(4,.82f,.46f).scale(4,110).move(5,.15f,.16f).scale(5,90).move(6,.76f,.16f).scale(6,80).move(7,.44f,.16f).scale(7,103);
+        ControlProfile cfg=d.move(0,.21f,.61f).scale(0,82).move(1,.66f,.73f).scale(1,135).move(2,.82f,.73f).scale(2,72).move(3,.66f,.45f).scale(3,148).move(4,.82f,.46f).scale(4,110).move(5,.15f,.16f).scale(5,90).move(6,.76f,.16f).scale(6,80).move(7,.44f,.16f).scale(7,103).move(ControlProfile.MAX_KEY,.93f,.60f).scale(ControlProfile.MAX_KEY,110);
         ok(!d.positioned(0)&&d.size(1)==100,"edit/cancel immutability");String encoded=cfg.encode();ControlProfile persisted=ControlProfile.decode(encoded);ok(encoded.equals(persisted.encode()),"roundtrip");
+        String legacy="1"+encoded.substring(1,encoded.lastIndexOf(';'));
+        ControlProfile migrated=ControlProfile.decode(legacy);
+        for(int id=0;id<8;id++){near(migrated.x(id),cfg.x(id),"legacy X");near(migrated.y(id),cfg.y(id),"legacy Y");ok(migrated.size(id)==cfg.size(id),"legacy size");}
+        ok(!migrated.positioned(ControlProfile.MAX_KEY)&&migrated.size(ControlProfile.MAX_KEY)==100,"legacy gains default MAX");
+        ok(ControlProfile.decode(migrated.encode()).encode().equals(migrated.encode()),"migrated profile saved in v2");
         for(String bad:new String[]{null,"","2",encoded.replace("0.21","NaN"),encoded.replace("0.21","Infinity"),encoded.replace(",135;",",1024;"),encoded+";"})ok(ControlProfile.decode(bad)==d,"corrupt preferences");
         ok(d.scale(2,1).size(2)==65&&d.scale(2,1000).size(2)==160&&d.move(2,-2,3).x(2)==0&&d.move(2,-2,3).y(2)==1,"bounds");
         int[][] sizes={{2392,1080},{2400,1080},{1920,1080},{1440,1080},{800,360},{640,360},{1600,720},{1280,800}};
         for(int[] s:sizes)for(int[] in:new int[][]{{0,0,0,0},{45,7,0,9},{0,0,45,12}})for(boolean arcade:new boolean[]{false,true})for(boolean full:new boolean[]{false,true}){
             layouts++;PadLayout old=pad(s[0],s[1],in,arcade,full,d),p=pad(s[0],s[1],in,arcade,full,persisted);
-            for(int id=0;id<8;id++){
+            for(int id=0;id<ControlProfile.COUNT;id++){
                 near(p.cx[id],p.safeX+cfg.x(id)*p.safeWidth,"normalized X");near(p.cy[id],p.safeY+cfg.y(id)*p.safeHeight,"normalized Y");near(p.rx[id]/old.rx[id],cfg.size(id)/100f,"own size");
                 ok(!p.obstructed(id),"reachable in resized layout "+id);if(p.visible(id))ok(p.pickSlot(p.cx[id],p.cy[id])==id,"editor hit equals drawing");
                 ok(p.cx[id]-p.rx[id]>=p.safeX-.001&&p.cx[id]+p.rx[id]<=p.safeX+p.safeWidth+.001&&p.cy[id]-p.ry[id]>=p.safeY-.001&&p.cy[id]+p.ry[id]<=p.safeY+p.safeHeight+.001,"in safe bounds");

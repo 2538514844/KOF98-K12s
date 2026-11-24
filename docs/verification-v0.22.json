@@ -1,0 +1,42 @@
+{
+  "apk": {
+    "version": "0.22-input-debug",
+    "apkBytes": 107538431,
+    "apkSha256": "398864554f3d5b5a97c2066c423a9e45c2e7fd20a84013503324780734648028",
+    "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+    "signatures": [
+      "v2",
+      "v3"
+    ],
+    "zipAlignment": "16KiB",
+    "architecture": "arm64-v8a",
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.BLUETOOTH",
+      "android.permission.BLUETOOTH_ADMIN",
+      "android.permission.BLUETOOTH_ADVERTISE",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.BLUETOOTH_SCAN"
+    ],
+    "unchangedPayloadEntriesCompared": 348,
+    "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+    "deviceTested": false,
+    "baselineSha256": "3028b0e648e6a8e33e3556f687ac54ed31457570240c02a043092fd90d15b6ed",
+    "sameSigner": true
+  },
+  "hostTests": {
+    "CenteringRegressionTest": 0,
+    "DisplayFlowTest": 0,
+    "GuideLayoutTest": 0,
+    "TouchReplayTest": 0,
+    "FightPlaybackTest": 0
+  },
+  "androidRobolectric": {
+    "tests": 30,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deviceTested": false,
+  "scope": "Opt-in touch/joystick/core-input recording and ZIP export; v0.21 input algorithm retained."
+}

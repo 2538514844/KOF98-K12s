@@ -1,0 +1,76 @@
+{
+  "apk": {
+    "version": "0.23-wushi-input-fix",
+    "apkBytes": 107538431,
+    "apkSha256": "e95027b49a235ad6b72ed0e315d2cfe1b2513fb6395837dbd9e7dc732c6035d1",
+    "certificateSha256": "b8894d0a483815a5bbcb8ae16fcff361d7a9ae41bdf8145817e0aedbb778a6a1",
+    "signatures": [
+      "v2",
+      "v3"
+    ],
+    "zipAlignment": "16KiB",
+    "architecture": "arm64-v8a",
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.BLUETOOTH",
+      "android.permission.BLUETOOTH_ADMIN",
+      "android.permission.BLUETOOTH_ADVERTISE",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.BLUETOOTH_SCAN"
+    ],
+    "unchangedPayloadEntriesCompared": 348,
+    "coreSha256": "82637a59dbe07f544be97c79267acafa17ffe3766bcbe0fcee5b6efd540f2e0b",
+    "deviceTested": false,
+    "baselineSha256": "398864554f3d5b5a97c2066c423a9e45c2e7fd20a84013503324780734648028",
+    "sameSigner": true
+  },
+  "androidRobolectric": {
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "hostTests": {
+    "CenteringRegressionTest": 0,
+    "DisplayFlowTest": 0,
+    "GuideLayoutTest": 0,
+    "TouchReplayTest": 0,
+    "FightPlaybackTest": 0
+  },
+  "touchReplaySummary": "RESULT cases=144 assertions=204916 failures=0",
+  "recordedReplay": {
+    "frames": 3467,
+    "baselineMismatches": 0,
+    "fixedChangedFrames": 46,
+    "heldStateMismatches": 0
+  },
+  "desktopCoreReplays": {
+    "20s": {
+      "beforeSuperFlashFrames": 0,
+      "afterSuperFlashFrames": 24,
+      "afterSuccess": true
+    },
+    "21s": {
+      "beforeSuperFlashFrames": 0,
+      "afterSuperFlashFrames": 24,
+      "afterSuccess": true
+    },
+    "27s": {
+      "beforeSuperFlashFrames": 0,
+      "afterSuperFlashFrames": 24,
+      "afterSuccess": true
+    },
+    "34s": {
+      "beforeSuperFlashFrames": 0,
+      "afterSuperFlashFrames": 0,
+      "afterSuccess": false
+    },
+    "35s": {
+      "beforeSuperFlashFrames": 0,
+      "afterSuperFlashFrames": 24,
+      "afterSuccess": true
+    }
+  },
+  "phoneRetested": false,
+  "scope": "Minimum two diagonal samples; replaying the same touch events and emulator poll times. Early punch case remains unsuccessful."
+}

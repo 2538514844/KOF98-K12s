@@ -37,6 +37,10 @@ final class DisplaySettings {
 
     static AlertDialog build(Context context, DisplayOptions current, boolean arcade, ControlEditor.Screen screen,
                              Consumer<DisplayOptions> apply) {
+        return build(context,current,arcade,screen,apply,null);
+    }
+    static AlertDialog build(Context context, DisplayOptions current, boolean arcade, ControlEditor.Screen screen,
+                             Consumer<DisplayOptions> apply,Runnable debug) {
         ScrollView scroll = new ScrollView(context);
         LinearLayout body = new LinearLayout(context);
         body.setOrientation(LinearLayout.VERTICAL);
@@ -47,6 +51,7 @@ final class DisplaySettings {
         Button guide=new Button(context);guide.setText("出招表预览");
         Button edit=new Button(context);edit.setText("按键布局");
         links.addView(guide,new LinearLayout.LayoutParams(0,-2,1));links.addView(edit,new LinearLayout.LayoutParams(0,-2,1));body.addView(links);
+        if(debug!=null){Button trace=new Button(context);trace.setText("输入调试");trace.setOnClickListener(v->debug.run());body.addView(trace);}
         TextView hint=new TextView(context);hint.setText("按键布局可以拖动、缩放；点「应用」保存更改。");hint.setTextSize(13);body.addView(hint);
 
         Switch full = new Switch(context);

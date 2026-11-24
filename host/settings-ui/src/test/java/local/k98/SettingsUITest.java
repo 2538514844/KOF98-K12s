@@ -57,6 +57,27 @@ public class SettingsUITest {
         dispatch(root,bar,0,0,left+w*.37f,h);dispatch(root,bar,20,2,left+w*.53f,h);int valid=stage.profile.size(1);assertTrue(valid>110&&valid<125);
         dispatch(root,bar,40,2,left+w*.95f,h);assertEquals(valid,stage.profile.size(1));assertEquals(valid-ControlProfile.MIN,bar.getProgress());assertFalse(stage.pad.obstructed(1));
         dispatch(root,bar,60,2,left+w*.45f,h);assertTrue(stage.profile.size(1)<valid);dispatch(root,bar,70,1,left+w*.45f,h);click(d,"取消");}
+    @Test @Config(qualifiers="w480dp-h270dp-land-mdpi") public void maxCanBeSelectedMovedResizedAndSavedAfterLegacyUpgrade(){
+        ControlProfile old=ControlProfile.DEFAULT.move(1,.64f,.72f).scale(1,120);
+        String encoded=old.encode(),legacy="1"+encoded.substring(1,encoded.lastIndexOf(';'));
+        ControlProfile upgraded=ControlProfile.decode(legacy);AtomicReference<ControlProfile> saved=new AtomicReference<>();
+        ControlEditor.open(anchor,new DisplayOptions(false,true,40,upgraded),screen,saved::set);
+        Dialog d=ShadowDialog.getLatestDialog();View root=decor(d);measure(root,480,270);
+        Spinner picker=find(root,Spinner.class,null);assertEquals(9,picker.getCount());picker.setSelection(ControlProfile.MAX_KEY);
+        shadowOf(Looper.getMainLooper()).idle();measure(root,480,270);
+        ControlEditor.Stage stage=find(root,ControlEditor.Stage.class,null);int max=ControlProfile.MAX_KEY;
+        assertEquals(max,stage.selected);assertEquals(120,stage.profile.size(1));assertEquals(.64f,stage.profile.x(1),.001f);
+        float x=stage.offsetX+stage.pad.cx[max]*stage.zoom,y=stage.offsetY+stage.pad.cy[max]*stage.zoom;
+        float nx=stage.offsetX+screen.w*.56f*stage.zoom,ny=stage.offsetY+screen.h*.30f*stage.zoom;
+        gesture(stage,0,x,y);gesture(stage,2,nx,ny);gesture(stage,1,nx,ny);
+        assertEquals(.56f,stage.profile.x(max),.003f);assertEquals(.30f,stage.profile.y(max),.003f);
+        SeekBar slider=find(root,SeekBar.class,null);float left=slider.getPaddingLeft(),width=slider.getWidth()-left-slider.getPaddingRight(),mid=slider.getHeight()*.5f;
+        dispatch(root,slider,0,0,left+width*.70f,mid);dispatch(root,slider,20,1,left+width*.70f,mid);
+        assertTrue(stage.profile.size(max)>120);click(d,"完成");
+        ControlProfile restored=ControlProfile.decode(saved.get().encode());
+        assertEquals(stage.profile.size(max),restored.size(max));assertEquals(.56f,restored.x(max),.003f);
+        assertEquals(120,restored.size(1));assertEquals(.64f,restored.x(1),.001f);
+    }
     @Test @Config(qualifiers="w480dp-h270dp-land-mdpi") public void videoUsesSelectedAssetAndReleasesOnRapidSwitchErrorAndDismiss()throws Exception{
         java.util.List<org.robolectric.shadows.ShadowMediaPlayer> players=new ArrayList<>();
         org.robolectric.shadows.ShadowMediaPlayer.setCreateListener((p,s)->players.add(s));
